@@ -10,8 +10,8 @@ sys.excepthook = debugexc.info
 Fc = 28
 X = 0.4
 Y = 0.6
-angulo = 0
-c = 0.360
+angulo = 99
+c = 0.2
 sXxY = seccion(Fc, X, Y)
 np.set_printoptions(precision=3, suppress=True)
 print("dimensión x=%.3f m dimensión y=%.3f"
@@ -33,17 +33,18 @@ print(sXxY.cord_ref(angulo))
 # sXxY.fy = 420*np.ones(len(sXxY.AreasRef))
 # angulo, c = sXxY.buscar_punto(1775, 115.8, -467.2)
 # print(angulo, c)
-# res = sXxY.resultante(angulo, c)
-# print(res)
+res = sXxY.resultante(angulo, c)
+print(res)
 # fires = sXxY.fi_result(angulo, c)
 # print(fires)
 # print(calc_ang(fires[1], fires[2]))
 # print(calc_d(sXxY, angulo))
-pmm = np.array(curvas.vertical(sXxY, 189))
-print('pmm')
-print(pmm)
-graf.plotPMM(pmm)
+# pmm = np.array(curvas.vertical(sXxY, -279))
+# print('pmm')
+# print(pmm)
+# graf.plotPMM(pmm)
 # graf.plotPMM(np.transpose(pmm), bycolumns=False)
 # graf.plotPM(pmm)
 parlem = np.array(curvas.horizontal(sXxY, 1775))
+print(parlem)
 graf.plot2d(parlem)

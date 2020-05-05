@@ -16,7 +16,9 @@ np.seterr(all='call')
 
 
 def rotar(coordenadas, grados, invertir=False):
-    a = radians(-(grados % 360))
+    # la operación de módulo me aproxima los números negativos
+    # por eso me tocó meter todo en esa fórmula
+    a = radians(-grados)
     t = np.array([[cos(a), -sin(a)],
                   [sin(a), cos(a)]])
     if invertir:
@@ -267,9 +269,9 @@ class seccion:
 
         ht = ymax-cor[2][1]
         if abs(angulo) % 90 == 0 or ht == 0:
-            ht = 0.00000000001
+            ht = 1e-10
             # htri, btri, htra, btra = 0, 0, 0, 0, 0
-            if (angulo == 0) or (angulo == 180):
+            if (abs(angulo) % 180 < 1) or (abs(angulo) % 180 > 179):
                 ta = 0.00001
                 hpar = min((betac, self.y))
                 bpar = self.x
@@ -305,8 +307,8 @@ class seccion:
         x1 = cor[1][0]
         X = [x3+htri/ht*(x2-x3+(x1-x3)*ht/(ymax-cor[1][1]))/3,
              copysign(bpar/2, x1)+x2+(cor[0][0]-x2)*hpar/2/(cor[2][1]-cor[0][1]),
-             x1-copysign(1, x1)*(htra/ta+btra/2+((ta-1/ta)*btra*htra/2
-                                 + htra**2/3*(ta**2-1/ta**2))/(bpar+btra)/2)]
+             x1-copysign(1, x1)*(btra**2/2+htra*(btra/ta+bpar/2*ta) +
+                                 htra**2/3*(1/ta**2-ta**2))/((bpar+btra)/2)]
         Y = [ymax-2*htri/3,
              cor[2][1]-hpar/2,
              cor[1][1]-htra/3*(bpar+2*btra)/(bpar+btra)]
@@ -355,6 +357,8 @@ class seccion:
         # xyConc = self.cord_conc(angulo)
         # if ejeN >= max(xyConc[:, 1])*2*self.defConc/(self.defConc-max(self.fy)/self.Es):
         #     return [self.Pnmax(), 0, 0, max(self.fy)/self.Es]
+        # if abs(angulo) < 0.0001:
+            # breakpoint()
 
         rConc = self.result_conc(angulo, ejeN)
         rRefu = self.result_ref(angulo, ejeN, rConc[3])
@@ -377,19 +381,22 @@ class seccion:
         # self.areas_varillas()
         # self.fy_varillas()
 
-        pos = ((PxY/PxX < -1) or (PxY/PxX > 1)) and (PxY < 0)
+        if PxX == 0:
+            pos = PxY < 0
+        else:
+            pos = ((PxY/PxX < -1) or (PxY/PxX > 1)) and (PxY < 0)
 
         if (angulo is None) and (c is None):
             asol = calc_ang(PxX, PxY, pos)
             c = self.buscar_c(P, asol)
             res = self.resultante(asol, c)
-            angulo = calc_ang(res[1], res[2], positive=pos)  # primera aproximación del ángulo
+            angulo = calc_ang(res[1], res[2], pos)  # primera aproximación del ángulo
             c = self.buscar_c(P, angulo)
             # print('1', angulo, c)
         elif angulo is None:
-            asol = calc_ang(PxX, PxY, positive=pos)
+            asol = calc_ang(PxX, PxY, pos)
             res = self.resultante(asol, c)
-            angulo = calc_ang(res[1], res[2], positive=pos)  # primera aproximación del ángulo
+            angulo = calc_ang(res[1], res[2], pos)  # primera aproximación del ángulo
             # print('2', angulo, c)
         else:
             c = self.buscar_c(P, angulo)
@@ -397,8 +404,7 @@ class seccion:
 
         res = self.fi_result(angulo, c)
         errP = abs(P-res[0])
-        errA = abs(calc_ang(PxX, PxY, positive=pos)
-                   - calc_ang(res[1], res[2], positive=pos))
+        errA = abs(calc_ang(PxX, PxY, pos)-calc_ang(res[1], res[2], pos))
         if (errP < 0.1) and (errA < 0.01):
             # print('4', angulo, c)
             return [angulo, c]
@@ -412,10 +418,10 @@ class seccion:
             # breakpoint()
             a1 = angulo
             c1 = c
-            a2 = self.buscar_ang(PxX, PxY, c1, ac1=a1)
-            c2 = self.buscar_c(P, a2, c=c1)
-            a3 = self.buscar_ang(PxX, PxY, c2, ac1=a2)
-            c3 = self.buscar_c(P, a3, c=c2)
+            a2 = self.buscar_ang(PxX, PxY, c1, a1)
+            c2 = self.buscar_c(P, a2, c1)
+            a3 = self.buscar_ang(PxX, PxY, c2, a2)
+            c3 = self.buscar_c(P, a3, c2)
             deltaA = abs(a3-a2)
             deltaC = abs(c3-c2)
             if (abs(a3-a1) < 0.01) and (abs(c3-c1) < 0.0001):
@@ -427,7 +433,7 @@ class seccion:
             # print('7', angulo, c)
             ip = ip+1
             print('ip=', ip)
-            if ip > 50:
+            if ip > 10:
                 raise 'Buscar ángulo y eje neutro no converge'
         return [angulo, c]
 
@@ -443,8 +449,8 @@ class seccion:
         p1 = self.fi_result(angulo, c1)[0]
         p2 = self.fi_result(angulo, c2)[0]
         # breakpoint()
-        # print('380 P p1 p2', P, p1, p2)
-        # print('381 ci c1 c2', (c2-c1)/(p2-p1)*(P-p1)+c1, c1, c2)
+        # print('380 P=%.1f p1=%.1f p2=%.1f' % (P, p1, p2))
+        # print('381 ci=%.4f c1=%.4f c2=%.4f' % ((c2-c1)/(p2-p1)*(P-p1)+c1, c1, c2))
         ic = 0
         while abs(P-p2) > (0.0001*self.Ag()*self.fc):
             ci = (c2-c1)/(p2-p1)*(P-p1)+c1
@@ -463,35 +469,47 @@ class seccion:
         return c2
 
     def buscar_ang(self, PxX, PxY, c, a=None):
-        pos = ((PxY/PxX < -1) or (PxY/PxX > 1)) and (PxY < 0)
+        if PxX == 0:
+            pos = PxY < 0
+        else:
+            pos = ((PxY/PxX < -1) or (PxY/PxX > 1)) and (PxY < 0)
         asol = calc_ang(PxX, PxY, pos)
 
-        aci = asol
-        res = self.resultante(aci, c)
-        ari = calc_ang(res[1], res[2], not pos)  # primera aproximación
         if a is None:
-            a = ari
-            acs = ari
-        else:
-            acs = a
+            res = self.resultante(asol, c)
+            a = calc_ang(res[1], res[2], not pos)  # primera aproximación
+        res = self.resultante(a, c)
+        ar = calc_ang(res[1], res[2], pos)
+        if abs(asol-ar) < 0.001:
+            return a
+        if a > 360 or a < 0:
+            a = ajustar_angulo(a, not pos)
+        aci = a
+        ari = ar
+        acs = a-copysign(0.1, asol-ar)
         res = self.resultante(acs, c)
-        ars = calc_ang(res[1], res[2], pos)
-        ar = ars
+        ars = calc_ang(res[1], res[2], pos)  # primera aproximación
+        if acs > 360 or acs < 0:
+            acs = ajustar_angulo(acs, not pos)
         if ars < ari:
+            a = acs
+            ar = ars
             acs = aci
             ars = ari
             aci = a
             ari = ar
-            a = aci-copysign(0.1, asol-ari)
-        else:
-            a = acs-copysign(0.1, asol-ars)
+        a = aci+(asol-ari)*(acs-aci)/(ars-ari)
         res = self.resultante(a, c)
         ar = calc_ang(res[1], res[2], pos)
-        ia = 0
-        while (asol < aci or acs < asol) and abs(asol-ar) > 0.001:
-            if a < asol:
-                if aci < asol:
-                    if aci < a:
+        if a > 360 or a < 0:
+            a = ajustar_angulo(a, not pos)
+        ia = 1
+        while (asol < ari or ars < asol) and abs(asol-ar) > 0.001:
+            # print('492 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
+            # print('493 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
+            if ar < asol:
+                if ari < asol:
+                    if ari < ar:
                         aci = a
                         ari = ar
                     else:
@@ -500,8 +518,8 @@ class seccion:
                     aci = a
                     ari = ar
             else:
-                if asol < acs:
-                    if a < acs:
+                if asol < ars:
+                    if ar < ars:
                         acs = a
                         ars = ar
                     else:
@@ -524,37 +542,27 @@ class seccion:
             ia = ia+1
             if ia > 50:
                 raise 'Buscar ángulo no converge'
-        while abs(asol-ar1) > 0.001:
-            print('419 asol=%.4f ar1=%.4f ar2=%.4f' % (asol, ar1, ar2))
-            print('420 asol=%.4f ac1=%.4f ac2=%.4f' % (asol, ac1, ac2))
-            # if ar2-ar1 == 0:
+        while abs(asol-ar) > 0.001:
+            # print('528 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
+            # print('529 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
+            # if ars-ari == 0:
             #     breakpoint()
-            # print('pendiente=', (ac2-ac1)/(ar2-ar1))
-            acn = ac2
-            arn = ar2
-            ac2 = ac1+(asol-ar1)*(ac2-ac1)/(ar2-ar1)
-            if ac2 > 360 or ac2 < 0:
-                ac2 = ajustar_angulo(ac2, not pos)
-            res = self.resultante(ac2, c)
-            ar2 = calc_ang(res[1], res[2], pos)
-            # div = 1.0
-            # while abs(asol-ar1) < abs(asol-ar2):
-            #     print('412 asol=%.4f ar1=%.4f ar2=%.4f div=%d' % (asol, ar1, ar2, div))
-            #     print('413 asol=%.4f ac1=%.4f ac2=%.4f div=%d' % (asol, ac1, ac2, div))
-            #     # breakpoint()
-            #     div = div*2
-            #     ac2 = ac1+(asol-ar1)*(ac2-ac1)/(ar2-ar1)/(div+.1)
-            #     if abs(ac2) > 360:
-            #         ac2 = ajustar_angulo(ac2, not pos)
-            #     res = self.resultante(ac2, c)
-            #     ar2 = calc_ang(res[1], res[2], pos)
-            #     print('div =', div)
-            ac1 = acn
-            ar1 = arn
-            # print('erra3', ac1, ar1)
+            # print('pendiente=', (acs-aci)/(ars-ari))
+            if ari < ar and ar < asol:
+                aci = a
+                ari = ar
+            elif asol < ar and ar < ars:
+                acs = a
+                ars = ar
+            else:
+                raise 'Buscar ángulo no converge'
+            a = aci+(asol-ari)*(acs-aci)/(ars-ari)
+            if a > 360 or a < 0:
+                a = ajustar_angulo(a, not pos)
+            res = self.resultante(a, c)
+            ar = calc_ang(res[1], res[2], pos)
             ia = ia+1
             if ia > 50:
                 raise 'Buscar ángulo no converge'
-        print('ia=%d c=%.4f' % (ia, c))
-        # print('a2', ac1, ar1)
-        return ac1
+        print('ia=%d asol=%.4f ar=%.4f a=%.4f c=%.4f' % (ia, asol, ar, a, c))
+        return a

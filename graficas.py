@@ -20,7 +20,7 @@ def plot3d(nparray):
 
 
 def plot2d(nparray):
-    plt.plot(nparray[:, 0], nparray[:, 1])
+    plt.plot(nparray[:, 0], nparray[:, 1], '+-')
     print('nparray2d')
     print(nparray)
     plt.show()

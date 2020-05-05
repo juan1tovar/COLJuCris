@@ -1,5 +1,5 @@
 import Seccion as sec
-from math import sin, cos, radians, log
+from math import sin, cos, tan, radians, log
 import numpy as np
 
 
@@ -20,10 +20,15 @@ def buscar_punto_with_fi(s, fi, asol, angulo=None, c=None):
     pos = ((y/x < -1) or (y/x > 1)) and (y < 0)
 
     if (angulo is None) and (c is None):
-        angulo = (-asol+90) % 360  # Primera aproximación del ángulo
+        asol = sec.calc_ang(x, y, pos)
+        c = calc_d(s, angulo)/(1+es/s.defConc)  # d*defConc/(defConc+defsteel)
+        res = s.resultante(asol, c)
+        angulo = sec.calc_ang(res[1], res[2], pos)  # Primera aproximación del ángulo
         c = calc_d(s, angulo)/(1+es/s.defConc)  # d*defConc/(defConc+defsteel)
     elif angulo is None:
-        angulo = (-asol+90) % 360  # Primera aproximación del ángulo
+        asol = sec.calc_ang(x, y, pos)
+        res = s.resultante(asol, c)
+        angulo = sec.calc_ang(res[1], res[2], pos)  # Primera aproximación del ángulo
     else:
         c = calc_d(s, angulo)/(1+es/s.defConc)
 
@@ -38,15 +43,15 @@ def buscar_punto_with_fi(s, fi, asol, angulo=None, c=None):
     while (deltaC > 0.0001) or (deltaA > 0.001):
         a1 = angulo
         c1 = c
-        a2 = s.buscar_ang(x, y, c1, ac1=a1)
+        a2 = s.buscar_ang(x, y, c1, a1)
         c2 = calc_d(s, a2)/(1+es/s.defConc)
-        a3 = s.buscar_ang(x, y, c2, ac1=a2)
+        a3 = s.buscar_ang(x, y, c2, a2)
         c3 = calc_d(s, a3)/(1+es/s.defConc)
         deltaA = abs(a3-a2)
         deltaC = abs(c3-c2)
-        # print(a1, a2, a3)
-        # print(c1, c2, c3)
-        # print(deltaA, deltaC)
+        # print('a1=%.4f a2=%.4f a3=%.4f' % (a1, a2, a3))
+        # print('c1=%.4f c2=%.4f c3=%.4f' % (c1, c2, c3))
+        # print('deltaA=%.4f deltaC=%.4f' % (deltaA, deltaC))
         if (abs(a3-a1) < 0.01) and (abs(c3-c1) < 0.0001):
             angulo = (a3+a2)/2
             c = (c3+c2)/2
@@ -54,8 +59,8 @@ def buscar_punto_with_fi(s, fi, asol, angulo=None, c=None):
             angulo = a3
             c = c3
         ies = ies+1
-    # breakpoint()
-    print('ies=', ies)
+        # breakpoint()
+        print('ies=', ies)
     return [angulo, c]
 
 
@@ -120,30 +125,30 @@ def n_fatcircle(x, y):
 def fiMn_cardinal(s, Pu, simetria='doble'):
     fiMn = [0, 0, 0, 0]
     fiMn[0] = s.fi_result(*s.buscar_punto(Pu, 1, 0))[1]
-    fiMn[1] = s.fi_result(s.buscar_punto(Pu, 0, 1))[2]
+    fiMn[1] = s.fi_result(*s.buscar_punto(Pu, 0, 1))[2]
     if simetria == 'doble':
         fiMn[2] = -fiMn[0]
         fiMn[3] = -fiMn[1]
         return fiMn
     elif simetria == 'ejeX':
-        fiMn[2] = s.fi_result(s.buscar_punto(Pu, -1, 0))[1]
+        fiMn[2] = s.fi_result(*s.buscar_punto(Pu, -1, 0))[1]
         fiMn[3] = -fiMn[1]
         return fiMn
     elif simetria == 'ejeY':
         fiMn[2] = -fiMn[0]
-        fiMn[3] = s.fi_result(s.buscar_punto(Pu, 0, -1))[2]
+        fiMn[3] = s.fi_result(*s.buscar_punto(Pu, 0, -1))[2]
         return fiMn
     elif simetria == 'ninguna':
-        fiMn[2] = s.fi_result(s.buscar_punto(Pu, -1, 0))[1]
-        fiMn[3] = s.fi_result(s.buscar_punto(Pu, 0, -1))[2]
+        fiMn[2] = s.fi_result(*s.buscar_punto(Pu, -1, 0))[1]
+        fiMn[3] = s.fi_result(*s.buscar_punto(Pu, 0, -1))[2]
         return fiMn
     else:
         raise 'fiMn_cardinal: simetría no definida'
 
 
 def n_fatcircle_45(s, Pu, Mx, My):
-    a, c = s.buscar_punto(Pu, Mx, My)
-    res = s.resultante(a, c)
+    res = s.fi_result(*s.buscar_punto(Pu, Mx, My))
+    # print('res=', res)
     return log(0.5)/log(res[1]/Mx)
 
 
@@ -153,37 +158,51 @@ def n_fatcircle_45(s, Pu, Mx, My):
 # M[2]  : fi*Mn cuando el angulo de reacción es 180
 # M[3]  : fi*Mn cuando el angulo de reacción es 270
 def fatcircle(s, div, angi, angf, Pu, M):
+    print(M)
     angi = angi % 360  # angulo de reacción donde inicia la curva
-    angf = angf % 360  # angulo de reacción donde finaliza la curva
-    if angf < angi:
-        raise 'fatcircle: el ángulo final es menor que el inicial'
+    if angf != 360:
+        angf = angf % 360  # angulo de reacción donde finaliza la curva
+    if angf <= angi:
+        raise 'fatcircle: el ángulo final es menor o igual que el inicial'
     a = angi
     da = 90/div
     fiMn = []
-    while a < 90 and a < angf:
-        n = n_fatcircle_45(s, Pu, M[0], M[1])
-        x = cos(a)
+
+# aún se puede mejorar la distribución de los puntos para que se concentre
+# en los extremos y en el medio.
+
+    n = n_fatcircle_45(s, Pu, M[0], M[1])
+    while a <= 90 and a <= angf:
+        x = 1/(1+abs(tan(radians(a))))**(1/n)
         y = (1-x**n)**(1/n)
+        # print('a=%.2f x=%.3f y=%.4f n=%.2f' % (a, x, y, n))
         fiMn.append([x*M[0], y*M[1]])
         a = a+da
-    while a < 180 and a < angf:
-        n = n_fatcircle_45(s, Pu, M[2], M[1])
-        x = cos(a)
+
+    n = n_fatcircle_45(s, Pu, M[2], M[1])
+    while a <= 180 and a <= angf:
+        x = 1/(1+abs(tan(radians(a))))**(1/n)
         y = (1-x**n)**(1/n)
+        # print('a=%.2f x=%.3f y=%.4f n=%.2f' % (a, x, y, n))
         fiMn.append([x*M[2], y*M[1]])
         a = a+da
-    while a < 270 and a < angf:
-        n = n_fatcircle_45(s, Pu, M[2], M[3])
-        x = cos(a)
+
+    n = n_fatcircle_45(s, Pu, M[2], M[3])
+    while a <= 270 and a <= angf:
+        x = 1/(1+abs(tan(radians(a))))**(1/n)
         y = (1-x**n)**(1/n)
+        # print('a=%.2f x=%.3f y=%.4f n=%.2f' % (a, x, y, n))
         fiMn.append([x*M[2], y*M[3]])
         a = a+da
-    while a < 360 and a < angf:
-        n = n_fatcircle_45(s, Pu, M[0], M[3])
-        x = cos(a)
+
+    n = n_fatcircle_45(s, Pu, M[0], M[3])
+    while a <= 360 and a <= angf:
+        x = 1/(1+abs(tan(radians(a))))**(1/n)
         y = (1-x**n)**(1/n)
+        # print('a=%.2f x=%.3f y=%.4f n=%.2f' % (a, x, y, n))
         fiMn.append([x*M[0], y*M[3]])
         a = a+da
+    return fiMn
 
 
 def horizontal(s, Pu, metodo='fatcircle', div=10, angi=0, angf=360):
