@@ -8,10 +8,11 @@ import graficas as graf
 # import curvas
 sys.excepthook = debugexc.info
 Fc = 28
-X = 0.4
-Y = 0.6
-angulo = 99
+X = 2.0
+Y = 0.12
+angulo = 0
 c = 0.2
+Pu = 100
 sXxY = seccion(Fc, X, Y)
 np.set_printoptions(precision=3, suppress=True)
 print("dimensión x=%.3f m dimensión y=%.3f"
@@ -20,12 +21,14 @@ print("f'c=%.1f MPa, E=%.2f MPa, defc=%.3f"
       % (sXxY.fc, sXxY.Ec_MPa(), sXxY.defConc))
 # print("coordenas de las equinas a 0°")
 # print(sXxY.cord_conc(0))class
-# print("coordenas de las equinas a angulo")
+# print("coordenas de las equinas a angulo")class
 # print(sXxY.cord_conc(angulo))
-sXxY.set_ref_sim(5, 5, '#7', '#7', opcion='esquinero')
+# breakpoint()
+sXxY.set_ref_sim(5, 5, '#7', '#7', opcion='esquinero',
+                 recub=0.02)
 # print('Refuerzo XY, Varilla, Área')
 # print(sXxY.refXY, sXxY.varillas)
-print("coordenas de las varillas rotadas angulo")
+print("coordenas de las varillas rotadas angulo=", angulo)
 print(sXxY.cord_ref(angulo))
 # print(var[0:2] for var in sXxY.Vari)
 # print(np.array(sXxY.iteracion(angulo, 0.52)))
@@ -33,18 +36,22 @@ print(sXxY.cord_ref(angulo))
 # sXxY.fy = 420*np.ones(len(sXxY.AreasRef))
 # angulo, c = sXxY.buscar_punto(1775, 115.8, -467.2)
 # print(angulo, c)
-res = sXxY.resultante(angulo, c)
-print(res)
+# res = sXxY.resultante(angulo, c)
+# print(res)
 # fires = sXxY.fi_result(angulo, c)
 # print(fires)
 # print(calc_ang(fires[1], fires[2]))
 # print(calc_d(sXxY, angulo))
-# pmm = np.array(curvas.vertical(sXxY, -279))
+# pmm = np.array(curvas.vertical(sXxY, 90))
 # print('pmm')
 # print(pmm)
-# graf.plotPMM(pmm)
-# graf.plotPMM(np.transpose(pmm), bycolumns=False)
-# graf.plotPM(pmm)
-parlem = np.array(curvas.horizontal(sXxY, 1775))
-print(parlem)
-graf.plot2d(parlem)
+# graf.addPMM(pmm)
+# graf.addPMM(np.transpose(pmm), bycolumns=False)
+# graf.addPM(pmm)
+parlem = np.array(curvas.horizontal(sXxY, Pu, metodo='fatcircle'))
+graf.add2d(parlem, "parlem")
+solici = np.array(curvas.horizontal(sXxY, Pu, metodo='ang_sol'))
+graf.add2d(solici, "ang sol")
+column = np.array(curvas.horizontal(sXxY, Pu, metodo='ang_col'))
+graf.add2d(column, "ang_col")
+graf.show()

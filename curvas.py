@@ -1,5 +1,5 @@
 import Seccion as sec
-from math import sin, cos, tan, radians, log
+from math import sin, cos, tan, radians, degrees, log, pi
 import numpy as np
 
 
@@ -157,59 +157,100 @@ def n_fatcircle_45(s, Pu, Mx, My):
 # M[1]  : fi*Mn cuando el angulo de reacción es 90
 # M[2]  : fi*Mn cuando el angulo de reacción es 180
 # M[3]  : fi*Mn cuando el angulo de reacción es 270
-def fatcircle(s, div, angi, angf, Pu, M):
-    print(M)
+def fatcircle(s, div, angi, angf, Pu, M=[]):
+    if M == []:
+        M = fiMn_cardinal(s, Pu)
+    # print(M)
     angi = angi % 360  # angulo de reacción donde inicia la curva
-    if angf != 360:
-        angf = angf % 360  # angulo de reacción donde finaliza la curva
-    if angf <= angi:
-        raise 'fatcircle: el ángulo final es menor o igual que el inicial'
-    a = angi
-    da = 90/div
+    angf = angf % 360  # angulo de reacción donde finaliza la curva
+    if angf-angi <= 0:
+        angf = angf + 360
+    a = radians(angi)
+    da = radians(90/div)
+    angf = radians(angf)
     fiMn = []
 
 # aún se puede mejorar la distribución de los puntos para que se concentre
 # en los extremos y en el medio.
 
+# NO FUNCIONA CORRECTAMENTE SI EL ÁNGULO INICIAL ES MENOR A 0 se requeriría un switch
+
     n = n_fatcircle_45(s, Pu, M[0], M[1])
-    while a <= 90 and a <= angf:
-        x = 1/(1+abs(tan(radians(a))))**(1/n)
+    while a % (2*pi) <= pi/2 and a <= angf:
+        x = 1/(1+abs(tan(a)))**(1/n)
         y = (1-x**n)**(1/n)
-        # print('a=%.2f x=%.3f y=%.4f n=%.2f' % (a, x, y, n))
+        print('fatcircle a=%.2f x=%.3f y=%.4f n=%.2f' % (degrees(a), x, y, n))
         fiMn.append([x*M[0], y*M[1]])
         a = a+da
 
     n = n_fatcircle_45(s, Pu, M[2], M[1])
-    while a <= 180 and a <= angf:
-        x = 1/(1+abs(tan(radians(a))))**(1/n)
+    while a % (2*pi) <= pi and a <= angf:
+        x = 1/(1+abs(tan(a)))**(1/n)
         y = (1-x**n)**(1/n)
-        # print('a=%.2f x=%.3f y=%.4f n=%.2f' % (a, x, y, n))
+        print('fatcircle a=%.2f x=%.3f y=%.4f n=%.2f' % (degrees(a), x, y, n))
         fiMn.append([x*M[2], y*M[1]])
         a = a+da
 
     n = n_fatcircle_45(s, Pu, M[2], M[3])
-    while a <= 270 and a <= angf:
-        x = 1/(1+abs(tan(radians(a))))**(1/n)
+    while a % (2*pi) <= 3*pi/2 and a <= angf:
+        x = 1/(1+abs(tan(a)))**(1/n)
         y = (1-x**n)**(1/n)
-        # print('a=%.2f x=%.3f y=%.4f n=%.2f' % (a, x, y, n))
+        print('fatcircle a=%.2f x=%.3f y=%.4f n=%.2f' % (degrees(a), x, y, n))
         fiMn.append([x*M[2], y*M[3]])
         a = a+da
 
     n = n_fatcircle_45(s, Pu, M[0], M[3])
-    while a <= 360 and a <= angf:
-        x = 1/(1+abs(tan(radians(a))))**(1/n)
+    while a % (2*pi) <= 2*pi and a <= angf:
+        x = 1/(1+abs(tan(a)))**(1/n)
         y = (1-x**n)**(1/n)
-        # print('a=%.2f x=%.3f y=%.4f n=%.2f' % (a, x, y, n))
+        print('fatcircle a=%.2f x=%.3f y=%.4f n=%.2f' % (degrees(a), x, y, n))
         fiMn.append([x*M[0], y*M[3]])
         a = a+da
+    return fiMn
+
+
+def h_ang_sol(s, div, angi, angf, Pu):
+    angi = angi % 360  # angulo de reacción donde inicia la curva
+    angf = angf % 360  # angulo de reacción donde finaliza la curva
+    if angf-angi <= 0:
+        angf = angf + 360
+    ar = radians(angi)
+    da = radians(90/div)
+    angf = radians(angf)
+    fiMn = []
+    a, c = s.buscar_punto(Pu, cos(ar), sin(ar))
+    while ar <= angf:
+        print('h_ang_sol a=%.2f ar=%.2f c=%.2f' % (a, degrees(ar), c))
+        # breakpoint()
+        fiMn.append(s.fi_result(a, c)[1:3])
+        ar = ar+da
+        a, c = s.buscar_punto(Pu, cos(ar), sin(ar), c=c)
+    return fiMn
+
+
+def h_ang_col(s, div, angi, angf, Pu):
+    angi = angi % 360  # angulo de reacción donde inicia la curva
+    angf = angf % 360  # angulo de reacción donde finaliza la curva
+    if angf-angi <= 0:
+        angf = angf + 360
+    a = angi
+    da = 90/div
+    angf = angf
+    fiMn = []
+    c = s.buscar_c(Pu, a)
+    while a <= angf:
+        fiMn.append(s.fi_result(a, c)[1:3])
+        a = a+da
+        c = s.buscar_c(Pu, a, c)
     return fiMn
 
 
 def horizontal(s, Pu, metodo='fatcircle', div=10, angi=0, angf=360):
     MxMy = {
         'fatcircle': fatcircle,
-        # 'exacto': h_exacta
+        'ang_sol': h_ang_sol,
+        'ang_col': h_ang_col
     }.get(metodo)
     if MxMy is None:
         raise 'Método de curva horizontal no definida'
-    return MxMy(s, div, angi, angf, Pu, fiMn_cardinal(s, Pu))
+    return MxMy(s, div, angi, angf, Pu)
