@@ -1,0 +1,13 @@
+-mostrar un estado de los datos. modificado o no.
+-ventanas por cada grafica
+-posibilidad de morstrar o no una gráfica
+-un servidor de base de datos puede controlar si se está agregando la misma grafica
+
+
+boton refresh
+poder cambiar de 3 figuras a 2
+escoger cual curva quiero "Graficar"
+opción de configuración de Refuerzo
+tiempo de cálculo, grafica
+handle del salir con la X de la ventana
+Verificar tipo de dato de entrada
