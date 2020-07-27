@@ -5,14 +5,14 @@ from operator import itemgetter
 np.set_printoptions(precision=3, suppress=True)
 
 
-def np_err_handler(type, flag):
-    print("Floating point error (%s), with flag %s" % (type, flag))
-    print('form more info search for numpy.seterrcall')
-    breakpoint()
+# def np_err_handler(type, flag):
+#     print("Floating point error (%s), with flag %s" % (type, flag))
+#     print('form more info search for numpy.seterrcall')
+#     breakpoint()
 
 
-np.seterrcall(np_err_handler)
-np.seterr(all='call')
+# np.seterrcall(np_err_handler)
+# np.seterr(all='call')
 
 
 def rotar(coordenadas, grados, invertir=False):
@@ -260,6 +260,8 @@ class seccion:
         cor = sorted(cor, key=itemgetter(1))
         ymax = cor[3][1]
         yEje = ymax-ejeN
+        if ejeN == 0:
+            return [0, 0, 0, yEje]
         betac = ejeN*max((min((0.85, 0.85-0.05*(self.fc-28)/7)), 0.65))
 
         # htri : altura (height) del triángulo
@@ -328,6 +330,8 @@ class seccion:
         cor = self.cord_ref(angulo)
         defmin = 1
         fuerza = []
+        if ejeN == 0:
+            ejeN = 0.0000001
         for i, v in enumerate(cor):
             du = (v[1]-yEje)*self.defConc/ejeN
             if du < defmin:
@@ -351,11 +355,8 @@ class seccion:
         if self.AreasRef == []:
             raise NameError('No se ha determinado el area de varillas de refuerzo')
 
-        if ejeN <= 0:
-            AsFy = 0
-            for i, a in enumerate(self.AreasRef):
-                AsFy = AsFy+self.fy[i]*a/1000
-            return [-AsFy, 0, 0, -self.deftrac]
+        if ejeN < 0:
+            raise "c<0, profundidad del eje neutro no válida"
         # xyConc = self.cord_conc(angulo)
         # if ejeN >= max(xyConc[:, 1])*2*self.defConc/(self.defConc-max(self.fy)/self.Es):
         #     return [self.Pnmax(), 0, 0, max(self.fy)/self.Es]
@@ -433,7 +434,7 @@ class seccion:
                 c = c3
             # print('7', angulo, c)
             ip = ip+1
-            print('ip=', ip)
+            # print('ip=', ip)
             if ip > 10:
                 raise 'Buscar ángulo y eje neutro no converge'
         return [angulo, c]
@@ -455,6 +456,8 @@ class seccion:
         ic = 0
         while abs(P-p2) > (0.0001*self.Ag()*self.fc):
             ci = (c2-c1)/(p2-p1)*(P-p1)+c1
+            if ci < 0:
+                ci = 0
             # print('422 P p1 p2', P, p1, p2)
             # print('423 ci c1 c2', ci, c1, c2)
             # breakpoint()
@@ -466,10 +469,12 @@ class seccion:
             if ic > 50:
                 raise 'Buscar eje neutro no converge'
         # print('c2', angulo, c2)
-        print('ic=', ic)
+        # print('ic=', ic)
         return c2
 
     def buscar_ang(self, PxX, PxY, c, a=None):
+        if c == 0:
+            raise "c=0, ángulo inderterminado"
         pos = PxY < 0
         asol = calc_ang(PxX, PxY, pos)
         # breakpoint()
@@ -519,6 +524,7 @@ class seccion:
                     else:
                         print('516 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
                         print('517 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
+                        print('ia=%d' % (ia))
                         raise 'Buscar ángulo no converge'
                 else:
                     aci = a
@@ -531,6 +537,7 @@ class seccion:
                     else:
                         print('528 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
                         print('529 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
+                        print('ia=%d' % (ia))
                         raise 'Buscar ángulo no converge'
                 else:
                     acs = a
@@ -549,6 +556,7 @@ class seccion:
             ar = calc_ang(res[1], res[2], pos)
             ia = ia+1
             if ia > 100:
+                print('ia=%d' % (ia))
                 raise 'Buscar ángulo no converge'
         while abs(asol-ar) > 0.001:
             # print('550 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
@@ -565,6 +573,7 @@ class seccion:
             else:
                 print('556 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
                 print('563 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
+                print('ia=%d' % (ia))
                 raise 'Buscar ángulo no converge'
             a = aci+(asol-ari)*(acs-aci)/(ars-ari)
             if a < -180:
@@ -575,6 +584,9 @@ class seccion:
             ar = calc_ang(res[1], res[2], pos)
             ia = ia+1
             if ia > 100:
-                raise 'Buscar ángulo no converge ia>50'
-        print('ia=%d asol=%.4f ar=%.4f a=%.4f c=%.4f' % (ia, asol, ar, a, c))
+                print('583 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
+                print('584 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
+                print('ia=%d' % (ia))
+                raise 'Buscar ángulo no converge ia>100'
+        # print('ia=%d asol=%.4f ar=%.4f a=%.4f c=%.4f' % (ia, asol, ar, a, c))
         return a

@@ -83,6 +83,8 @@ def vertical(s, asol, sv=3):
     c.extend(np.arange(ccom, ctra, -(ccom-ctra)/2/sv))
     if c[-1]-ctra < 0.0005:
         c.pop(-1)
+    if c0 > ctra:
+        c0 = 2*ctra/3
     c.extend(np.arange(ctra, c0, -(ctra-c0)/sv))
     if c[-1]-c0 < 0.0005:
         c.pop(-1)
@@ -95,8 +97,10 @@ def vertical(s, asol, sv=3):
     # cada iteración inicia desde el último ángulo encontrado
     print('c')
     print(c)
+    a = amax
     for i in range(1, sv*6):
-        fipmm.append(s.fi_result(s.buscar_ang(x, y, c[i]), c[i]))
+        a = s.buscar_ang(x, y, c[i], a)
+        fipmm.append(s.fi_result(a, c[i]))
     fipmm.append(s.fi_result(0, 0))
     return fipmm
 
@@ -179,7 +183,7 @@ def fatcircle(s, div, angi, angf, Pu, M=[]):
     while a % (2*pi) <= pi/2 and a <= angf:
         x = 1/(1+abs(tan(a)))**(1/n)
         y = (1-x**n)**(1/n)
-        print('fatcircle a=%.2f x=%.3f y=%.4f n=%.2f' % (degrees(a), x, y, n))
+        # print('fatcircle a=%.2f x=%.3f y=%.4f n=%.2f' % (degrees(a), x, y, n))
         fiMn.append([x*M[0], y*M[1]])
         a = a+da
 
@@ -187,7 +191,7 @@ def fatcircle(s, div, angi, angf, Pu, M=[]):
     while a % (2*pi) <= pi and a <= angf:
         x = 1/(1+abs(tan(a)))**(1/n)
         y = (1-x**n)**(1/n)
-        print('fatcircle a=%.2f x=%.3f y=%.4f n=%.2f' % (degrees(a), x, y, n))
+        # print('fatcircle a=%.2f x=%.3f y=%.4f n=%.2f' % (degrees(a), x, y, n))
         fiMn.append([x*M[2], y*M[1]])
         a = a+da
 
@@ -195,7 +199,7 @@ def fatcircle(s, div, angi, angf, Pu, M=[]):
     while a % (2*pi) <= 3*pi/2 and a <= angf:
         x = 1/(1+abs(tan(a)))**(1/n)
         y = (1-x**n)**(1/n)
-        print('fatcircle a=%.2f x=%.3f y=%.4f n=%.2f' % (degrees(a), x, y, n))
+        # print('fatcircle a=%.2f x=%.3f y=%.4f n=%.2f' % (degrees(a), x, y, n))
         fiMn.append([x*M[2], y*M[3]])
         a = a+da
 
@@ -203,7 +207,7 @@ def fatcircle(s, div, angi, angf, Pu, M=[]):
     while a % (2*pi) <= 2*pi and a <= angf:
         x = 1/(1+abs(tan(a)))**(1/n)
         y = (1-x**n)**(1/n)
-        print('fatcircle a=%.2f x=%.3f y=%.4f n=%.2f' % (degrees(a), x, y, n))
+        # print('fatcircle a=%.2f x=%.3f y=%.4f n=%.2f' % (degrees(a), x, y, n))
         fiMn.append([x*M[0], y*M[3]])
         a = a+da
     return fiMn
@@ -220,7 +224,7 @@ def h_ang_sol(s, div, angi, angf, Pu):
     fiMn = []
     a, c = s.buscar_punto(Pu, cos(ar), sin(ar))
     while ar <= angf:
-        print('h_ang_sol a=%.2f ar=%.2f c=%.2f' % (a, degrees(ar), c))
+        # print('h_ang_sol a=%.2f ar=%.2f c=%.2f' % (a, degrees(ar), c))
         # breakpoint()
         fiMn.append(s.fi_result(a, c)[1:3])
         ar = ar+da

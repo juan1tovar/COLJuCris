@@ -4,15 +4,16 @@ import numpy as np
 from Seccion import seccion
 # from Seccion import calc_ang
 import curvas
-import graficas as graf
-# import curvas
+import graficas
+# import interface
+
 sys.excepthook = debugexc.info
 Fc = 28
-X = 2.0
-Y = 0.12
-angulo = 0
-c = 0.2
-Pu = 100
+X = .4
+Y = .6
+angulo = 45
+# c = 0.2
+Pu = 0
 sXxY = seccion(Fc, X, Y)
 np.set_printoptions(precision=3, suppress=True)
 print("dimensión x=%.3f m dimensión y=%.3f"
@@ -42,16 +43,18 @@ print(sXxY.cord_ref(angulo))
 # print(fires)
 # print(calc_ang(fires[1], fires[2]))
 # print(calc_d(sXxY, angulo))
-# pmm = np.array(curvas.vertical(sXxY, 90))
-# print('pmm')
-# print(pmm)
-# graf.addPMM(pmm)
-# graf.addPMM(np.transpose(pmm), bycolumns=False)
-# graf.addPM(pmm)
+graf = graficas.grafica()
+# ventana = interface.tkwindow(graf)
+pmm = np.array(curvas.vertical(sXxY, angulo))
+graf.addPMM(pmm)
+graf.addPM(pmm, angulo)
 parlem = np.array(curvas.horizontal(sXxY, Pu, metodo='fatcircle'))
-graf.add2d(parlem, "parlem")
+graf.addhor(parlem, "parlem")
 solici = np.array(curvas.horizontal(sXxY, Pu, metodo='ang_sol'))
-graf.add2d(solici, "ang sol")
+graf.addhor(solici, "ang sol")
 column = np.array(curvas.horizontal(sXxY, Pu, metodo='ang_col'))
-graf.add2d(column, "ang_col")
+graf.addhor(column, "ang_col")
 graf.show()
+# ventana.mainloop()
+
+print('ok')
