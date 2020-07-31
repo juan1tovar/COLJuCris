@@ -2,12 +2,22 @@
 -ventanas por cada grafica
 -posibilidad de morstrar o no una gráfica
 -un servidor de base de datos puede controlar si se está agregando la misma grafica
+- opción de sobrescribir la base de datos o no o crear una nueva.
+-sacar un pantallazo de un frame específico
+-ponerle borde a un frame.
+-tiempo límite para las iteraciones en lugar de cantidad de iteraciones.Ajustable por el usuario
+-analizar la convergencia. requiere base de datos.
 
 
-boton refresh
-poder cambiar de 3 figuras a 2
-escoger cual curva quiero "Graficar"
-opción de configuración de Refuerzo
+crear una ventana de inicio
+crear la clase de ventan para índice para mostrar el índice para una solicitación dada
+opción configuración de Refuerzo y diametros.
 tiempo de cálculo, grafica
-handle del salir con la X de la ventana
+handle del salir con la X de la ventana. tal vez el canvas no se está destruyendo.
+implementar metodos de graficar refuerzo en el modulo graficas.
+mostrar una ilustración de las varillas
 Verificar tipo de dato de entrada
+incluir variables graficas en variables globales o que se puedan editar para cada gráfica
+poder cambiar variables globales, ventana para editar el diccionario de tablas
+poder cambiar de 3 figuras a 2
+boton texto vertical

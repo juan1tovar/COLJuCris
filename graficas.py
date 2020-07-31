@@ -1,5 +1,7 @@
-import matplotlib.pyplot as plt
 import matplotlib
+# matplotlib.use("TkAgg")  # Linux
+import matplotlib.pyplot as plt
+# from mpl_toolkits.mplot3d import Axes3D  # Linux
 import numpy as np
 from copy import copy
 
@@ -23,7 +25,7 @@ class grafica ():
             self.axe = self.fig.add_subplot(projection='3d')
         else:
             self.axe = self.fig.add_subplot()
-        self.fig.legend()
+        # self.fig.legend()
 
     def show(self):
         # plt.legend()
@@ -42,26 +44,26 @@ class grafica ():
     def cla(self):
         self.axe.cla()
 
-    def add3d(self, nparray):
-        print('grafica.add3d')
-        self.axe.plot(nparray[:, 0], nparray[:, 1], nparray[:, 2])
+    def add3d(self, nparray, label):
+        self.axe.plot(nparray[:, 0], nparray[:, 1], nparray[:, 2], label=label)
+        print('grafica 3d añadida')
         # print('nparray3d')
         # print(nparray)
 
     def add2D(self, nparray, label):
-        print('grafica.add2D')
         self.axe.plot(nparray[:, 0], nparray[:, 1], '+-', label=label)
+        print('grafica 2D añadida')
         # print('nparray2d')
         # print(nparray)
 
-    def addPMM(self, pmm, bycolumns=True):
+    def addPMM(self, pmm, label, bycolumns=True):
         if not (bycolumns):
             pmm = np.transpose(pmm)
         nparray = copy(pmm)
         nparray[:, 0] = pmm[:, 1]
         nparray[:, 1] = pmm[:, 2]
         nparray[:, 2] = pmm[:, 0]
-        self.add3d(nparray[:, 0:3])
+        self.add3d(nparray[:, 0:3], label)
 
     def addPM(self, pmm, label, bycolumns=True):
         if not (bycolumns):

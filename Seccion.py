@@ -2,6 +2,7 @@ import numpy as np
 # import math
 from math import radians, sin, cos, copysign, atan, tan, degrees
 from operator import itemgetter
+import public_data as pd
 np.set_printoptions(precision=3, suppress=True)
 
 
@@ -45,62 +46,65 @@ def calc_ang(x, y, positive=False):
     return ang
 
 
-class seccion:
+class seccion_varilla:
 
-    def __init__(self, fc, LadoX, LadoY):
-        self.x = LadoX  # metros
-        self.y = LadoY  # metroskb
-        self.psi = atan(self.y/self.x)
-        self.fc = fc    # MPa
-        self.fy = []    # MPa
-        self.Es = 200000    # MPa
-        self.defConc = 0.003    # Ɛ deformación unitaria
-        self.deftrac = 0.005    # Ɛ deformación unitaria falla por tracción
-        self.ficomp = 0.65       # ɸc para sección controlada por compresión
-        self.fitracc = 0.90     # ɸt para sección controlada por tracción
-        self.refActual = ''
-        self.AreasRef = []
+    def __init__(self, etiqueta, fy, Es):
+        self.etiq = etiqueta
+        self.diam = pd.steel_bars[etiqueta][0]/1000
+        self.area = pd.steel_bars[etiqueta][1]/1000/1000
+        self.fy = fy  # MPa
+        self.Es = Es  # MPa
+
+
+class refuerzo:
+
+    def __init__(self):
         self.refXY = []
         self.varillas = []
-        self.esquinas = np.array([[0+self.x/2, 0-self.y/2],
-                                  [0+self.x/2, 0+self.y/2],
-                                  [0-self.x/2, 0+self.y/2],
-                                  [0-self.x/2, 0-self.y/2]])
+        self.refActual = ''  # Es un flag para saber si ya se asignó un refuerzo
+        # self.rec = recubrimiento
 
-# -------------------------- Métodos de concreto -------------------------
-    def Ec_MPa(self):
-        return 4700*self.fc**0.5
+    # tablaRefuerzo = public_data.varillas
 
-    def Ag(self):
-        return self.x*self.y
+    def cord_ref(self, angulo):
+        if self.refXY == []:
+            raise NameError('No se han ingresado varillas de refuerzo')
+        return rotar(self.refXY, angulo)
 
-    def cord_conc(self, angulo):
-        return rotar(self.esquinas, angulo)
+    def As(self):
+        if self.refXY == []:
+            raise NameError('No se han ingresado varillas de refuerzo')
 
+        As = 0
+        for var in self.varillas:
+            As = As + var.area
+        return As
 
-# -------------------------- Métodos de refuerzo -------------------------
-    tablaRefuerzo = {'Tag': ['D[mm]', 'A[mm²]'],
-                     '#3': [9.5, 71],
-                     '#4': [12.7, 129],
-                     '#5': [15.9, 199],
-                     '#6': [19.1, 284],
-                     '#7': [22.2, 387],
-                     '#8': [25.4, 510],
-                     '#9': [28.7, 645],
-                     '#10': [32.3, 819]}
+    def fy_max(self):
+        self.fy = 420*np.ones(len(self.AreasRef))
 
-    def intercalado(self, NVarX, NVarY, DEsqui, DAlter, DFlej='#3', recub=0.04):
-        DE = self.tablaRefuerzo[DEsqui][0]/1000
-        DA = self.tablaRefuerzo[DAlter][0]/1000
-        DF = self.tablaRefuerzo[DFlej][0]/1000
+    def set_ref_sim(self, NVarX, NVarY, v_esquina, v_alterna, v_fleje, recub,
+                    opcion='intercalado'):
+        func = getattr(self, opcion, 'OpcInvalida')
+
+        if func == 'OpcInvalida':
+            raise NameError('No existe esa opción de refuerzo simétrico')
+
+        func(NVarX, NVarY, v_esquina, v_alterna, v_fleje, recub)
+        self.refActual = opcion
+
+    def intercalado(self, NVarX, NVarY, v_esquina, v_alterna, v_fleje, recub):
+        DE = v_esquina.diam
+        DA = v_alterna.diam
+        DF = v_fleje.diam
         Xmax = self.x/2-recub-DF
         Ymax = self.y/2-recub-DF
         sepx = (Xmax*2-DE)/(NVarX-1)
         if sepx < 0:
-            raise "Intercalado: sepx<0"
+            raise NameError("Intercalado: sepx<0")
         sepy = (Ymax*2-DE)/(NVarY-1)
         if sepy < 0:
-            raise "Intercalado: sepy<0"
+            raise NameError("Intercalado: sepy<0")
         varx = [list(range(int(NVarX/2)+NVarX % 2)),
                 list(range(int(NVarX/2)+NVarX % 2)),
                 list(range(int(NVarX/2)+NVarX % 2)),
@@ -114,34 +118,34 @@ class seccion:
         for n in range(0, int(NVarX/2)+NVarX % 2, 2):
             x = Xmax-DE/2-sepx*n
             y = Ymax-DE/2
-            varx[0][n] = [x, y, DEsqui]
-            varx[1][n] = [-x, y, DEsqui]
-            varx[2][n] = [-x, -y, DEsqui]
-            varx[3][n] = [x, -y, DEsqui]
+            varx[0][n] = [x, y, v_esquina]
+            varx[1][n] = [-x, y, v_esquina]
+            varx[2][n] = [-x, -y, v_esquina]
+            varx[3][n] = [x, -y, v_esquina]
             if n+1 == int(NVarX/2)+NVarX % 2:
                 break
             x = Xmax-DE/2-sepx*(n+1)
             y = Ymax-DA/2
-            varx[0][n+1] = [x, y, DAlter]
-            varx[1][n+1] = [-x, y, DAlter]
-            varx[2][n+1] = [-x, -y, DAlter]
-            varx[3][n+1] = [x, -y, DAlter]
+            varx[0][n+1] = [x, y, v_alterna]
+            varx[1][n+1] = [-x, y, v_alterna]
+            varx[2][n+1] = [-x, -y, v_alterna]
+            varx[3][n+1] = [x, -y, v_alterna]
 
         for n in range(0, int(NVarY/2)+NVarY % 2, 2):
             x = Xmax-DE/2
             y = Ymax-DE/2-sepy*n
-            vary[0][n] = [x, y, DEsqui]
-            vary[1][n] = [-x, y, DEsqui]
-            vary[2][n] = [-x, -y, DEsqui]
-            vary[3][n] = [x, -y, DEsqui]
+            vary[0][n] = [x, y, v_esquina]
+            vary[1][n] = [-x, y, v_esquina]
+            vary[2][n] = [-x, -y, v_esquina]
+            vary[3][n] = [x, -y, v_esquina]
             if n+1 == int(NVarY/2)+NVarY % 2:
                 break
             x = Xmax-DA/2
             y = Ymax-DE/2-sepy*(n+1)
-            vary[0][n+1] = [x, y, DAlter]
-            vary[1][n+1] = [-x, y, DAlter]
-            vary[2][n+1] = [-x, -y, DAlter]
-            vary[3][n+1] = [x, -y, DAlter]
+            vary[0][n+1] = [x, y, v_alterna]
+            vary[1][n+1] = [-x, y, v_alterna]
+            vary[2][n+1] = [-x, -y, v_alterna]
+            vary[3][n+1] = [x, -y, v_alterna]
 
         ReSi = []
         ReSi.extend(vary[3][:])
@@ -158,346 +162,418 @@ class seccion:
         ReSi.extend(varx[3][NVarX % 2:-1])
         self.refXY = np.array([var[0:2] for var in ReSi])
         self.varillas = [var[2] for var in ReSi]
-        self.areas_varillas()
-        self.fy_varillas()
 
-    def esquinero(self, NVarX, NVarY, DEsqui, DAlter, DFlej='#3', recub=0.04):
-        DE = self.tablaRefuerzo[DEsqui][0]/1000
-        DA = self.tablaRefuerzo[DAlter][0]/1000
-        DF = self.tablaRefuerzo[DFlej][0]/1000
+    def esquinero(self, NVarX, NVarY, v_esquina, v_alterna, v_fleje, recub):
+        DE = v_esquina.diam
+        DA = v_alterna.diam
+        DF = v_fleje.diam
         Xmax = self.x/2-recub-DF
         Ymax = self.y/2-recub-DF
         sepx = (Xmax*2-DE)/(NVarX-1)
         if sepx < 0:
-            raise "Esquinero: sepx<0"
+            raise NameError("Esquinero: sepx<0")
         sepy = (Ymax*2-DE)/(NVarY-1)
         if sepy < 0:
-            raise "Esquinero: sepy<0"
+            raise NameError("Esquinero: sepy<0")
         ReSi = []
         x = Xmax-DE/2
         y = Ymax-DE/2
-        ReSi.append([x, -y, DEsqui])
+        ReSi.append([x, -y, v_esquina])
         x = Xmax-DA/2
 
         for i in range(1, NVarY-1):
             y = Ymax-DE/2-sepy*i
-            ReSi.append([x, -y, DAlter])
+            ReSi.append([x, -y, v_alterna])
 
         x = Xmax-DE/2
         y = Ymax-DE/2
-        ReSi.append([x, y, DEsqui])
+        ReSi.append([x, y, v_esquina])
         y = Ymax-DA/2
 
         for i in range(1, NVarX-1):
             x = Xmax-DE/2-sepx*i
-            ReSi.append([x, y, DAlter])
+            ReSi.append([x, y, v_alterna])
 
         x = Xmax-DE/2
         y = Ymax-DE/2
-        ReSi.append([-x, y, DEsqui])
+        ReSi.append([-x, y, v_esquina])
         x = Xmax-DA/2
 
         for i in range(1, NVarY-1):
             y = Ymax-DE/2-sepy*i
-            ReSi.append([-x, y, DAlter])
+            ReSi.append([-x, y, v_alterna])
 
         x = Xmax-DE/2
         y = Ymax-DE/2
-        ReSi.append([-x, -y, DEsqui])
+        ReSi.append([-x, -y, v_esquina])
         y = Ymax-DA/2
 
         for i in range(1, NVarX-1):
             x = Xmax-DE/2-sepx*i
-            ReSi.append([-x, -y, DAlter])
+            ReSi.append([-x, -y, v_alterna])
 
         self.refXY = np.array([var[0:2] for var in ReSi])
         self.varillas = [var[2] for var in ReSi]
-        self.areas_varillas()
-        self.fy_varillas()
 
-    def cord_ref(self, angulo):
 
-        if self.refXY == []:
-            raise NameError('No se han ingresado varillas de refuerzo')
+class concreto:
 
-        return rotar(self.refXY, angulo)
+    def __init__(self, fc):
+        self.fc = fc  # MPa
 
-    def areas_varillas(self):
+    def Ec_MPa(self):
+        return 4700*self.fc**0.5
 
-        if self.refXY == []:
-            raise NameError('No se han ingresado varillas de refuerzo')
 
-        self.AreasRef = []
-        for var in self.varillas:
-            self.AreasRef.append(self.tablaRefuerzo[var][1])
-        # return areas
+class seccion(concreto, refuerzo):
 
-    def fy_varillas(self):
-        self.fy = 420*np.ones(len(self.AreasRef))
+    def __init__(self, fc, LadoX, LadoY):
+        concreto.__init__(self, fc)
+        refuerzo.__init__(self)
+        self.x = LadoX  # metros
+        self.y = LadoY  # metros
 
-# ---------------------------- Métodos de la sección ----------------------------
-    def set_ref_sim(self, NVarX, NVarY, DEsqui, DAlter,
-                    opcion='intercalado', DFlej='#3', recub=0.04):
-        func = getattr(self, opcion, 'OpcInvalida')
+    def psi(self):
+        return atan(self.y/self.x)
 
-        if func == 'OpcInvalida':
-            raise NameError('No existe esa opción de refuerzo simétrico')
+    def Ag(self):
+        return self.x*self.y
 
-        func(NVarX, NVarY, DEsqui, DAlter, DFlej, recub)
-        self.refActual = opcion
+    def esquinas(self):
+        return np.array([[0+self.x/2, 0-self.y/2],
+                         [0+self.x/2, 0+self.y/2],
+                         [0-self.x/2, 0+self.y/2],
+                         [0-self.x/2, 0-self.y/2]])
 
-    def Pnmax(self):
-        As = sum(self.AreasRef)
-        Ag = self.Ag()
-        AsFy = 0
-        for i, a in enumerate(self.AreasRef):
-            AsFy = AsFy+self.fy[i]*a/1000
-        return 0.75*(0.85*(Ag-As/10**6)*self.fc*1000+AsFy)
-        # 0.75 es un factor que depende del código o del material
+    def cord_conc(self, angulo):
+        return rotar(self.esquinas(), angulo)
 
-    def result_conc(self, angulo, ejeN):
-        cor = sorted(self.cord_conc(angulo), key=itemgetter(0))
-        cor = sorted(cor, key=itemgetter(1))
-        ymax = cor[3][1]
-        yEje = ymax-ejeN
-        if ejeN == 0:
-            return [0, 0, 0, yEje]
-        betac = ejeN*max((min((0.85, 0.85-0.05*(self.fc-28)/7)), 0.65))
 
-        # htri : altura (height) del triángulo
-        # btri : base del triángulo
-        # hpar : altura del paralelogramo
-        # bpar : base del paralelogramo
-        # htra : altura del trapecio
-        htri, hpar, htra, btri, bpar, btra, ta = 0, 0, 0, 0, 0, 0, 0
+def Pnmax(seccion, factor=0.75):
+    Ag = seccion.Ag()
+    AsFy = 0
+    for var in seccion.varillas:
+        AsFy = AsFy+var.area*var.fy*1000
+    return factor*(0.85*(Ag-seccion.As())*seccion.fc*1000+AsFy)
+    # 0.75 es un factor que depende del código o del material
 
-        ht = ymax-cor[2][1]
-        if abs(angulo) % 90 == 0 or ht == 0:
-            ht = 1e-10
-            # htri, btri, htra, btra = 0, 0, 0, 0, 0
-            if (abs(angulo) % 180 < 1) or (abs(angulo) % 180 > 179):
-                ta = 0.00001
-                hpar = min((betac, self.y))
-                bpar = self.x
-            else:
-                ta = 1000000
-                hpar = min((betac, self.x))
-                bpar = self.y
+
+def result_conc(seccion, angulo, ejeN):
+    cor = sorted(seccion.cord_conc(angulo), key=itemgetter(0))
+    cor = sorted(cor, key=itemgetter(1))
+    ymax = cor[3][1]
+    yEje = ymax-ejeN
+    if ejeN == 0:
+        return [0, 0, 0, yEje]
+    betac = ejeN*max((min((0.85, 0.85-0.05*(seccion.fc-28)/7)), 0.65))
+
+    # htri : altura (height) del triángulo
+    # btri : base del triángulo
+    # hpar : altura del paralelogramo
+    # bpar : base del paralelogramo
+    # htra : altura del trapecio
+    htri, hpar, htra, btri, bpar, btra, ta = 0, 0, 0, 0, 0, 0, 0
+
+    ht = ymax-cor[2][1]
+    if abs(angulo) % 90 == 0 or ht == 0:
+        ht = 1e-10
+        # htri, btri, htra, btra = 0, 0, 0, 0, 0
+        if (abs(angulo) % 180 < 1) or (abs(angulo) % 180 > 179):
+            ta = 0.00001
+            hpar = min((betac, seccion.y))
+            bpar = seccion.x
         else:
-            htri = min((ht, betac))
-            hpar = min((cor[2][1]-cor[1][1], betac-htri))
-            htra = min((ht, betac-hpar-htri))
-            angbase = abs(angulo) % 180.0  # Este angulo se usa para calcular el bloque de Witney
-            if angbase > 90:
-                angbase = 180-angbase
-            if radians(angbase) < self.psi:
-                bpar = self.x/cos(radians(angbase))
-                ta = tan(radians(angbase))
-            else:
-                bpar = self.y/cos(radians(90-angbase))
-                ta = tan(radians(90-angbase))
-            btri = bpar/ht*htri
-            btra = bpar/ht*(ht-htra)
-
-        # print('ta=',ta)
-        # if ta == 0:
-        #     ta = 0.00001
-
-        A = [btri*htri/2,
-             bpar*hpar,
-             (bpar+btra)/2*htra]
-        x3 = cor[3][0]
-        x2 = cor[2][0]
-        x1 = cor[1][0]
-        X = [x3+htri/ht*(x2-x3+(x1-x3)*ht/(ymax-cor[1][1]))/3,
-             copysign(bpar/2, x1)+x2+(cor[0][0]-x2)*hpar/2/(cor[2][1]-cor[0][1]),
-             x1-copysign(1, x1)*(btra**2/2+htra*(btra/ta+bpar/2*ta) +
-                                 htra**2/3*(1/ta**2-ta**2))/((bpar+btra)/2)]
-        Y = [ymax-2*htri/3,
-             cor[2][1]-hpar/2,
-             cor[1][1]-htra/3*(bpar+2*btra)/(bpar+btra)]
-        Ag = sum(A)
-        # breakpoint()
-        A = np.array(A)
-        Fuerza = Ag*0.85*self.fc*1000
-        xyro = np.array([[sum(A*np.array(X))/Ag],
-                        [sum(A*np.array(Y))/Ag]])
-        xy = rotar(xyro, angulo, invertir=True)
-        # breakpoint()
-        return [Fuerza, Fuerza*xy[0, 0], Fuerza*xy[1, 0], yEje]
-
-    def result_ref(self, angulo, ejeN, yEje):
-        cor = self.cord_ref(angulo)
-        defmin = 1
-        fuerza = []
-        if ejeN == 0:
-            ejeN = 0.0000001
-        for i, v in enumerate(cor):
-            du = (v[1]-yEje)*self.defConc/ejeN
-            if du < defmin:
-                defmin = du
-            if du > 0:
-                fuerza.append(min(self.fy[i], self.Es*du)*self.AreasRef[i]/1000)
-            else:
-                fuerza.append(max(-self.fy[i], self.Es*du)*self.AreasRef[i]/1000)
-        fuerza = np.array(fuerza)
-        Fuerza = np.sum(fuerza)
-        FxX = fuerza.dot(self.refXY[:, 0])
-        FxY = fuerza.dot(self.refXY[:, 1])
-        # print('Refuerzo', Fuerza, FxX, FxY)
-        return [Fuerza, FxX, FxY, defmin]
-
-    def resultante(self, angulo, ejeN):
-        if self.refXY == []:
-            raise NameError('No se han ingresado varillas de refuerzo')
-        if self.fy == []:
-            raise NameError('No se ha asignado fy de cada varilla')
-        if self.AreasRef == []:
-            raise NameError('No se ha determinado el area de varillas de refuerzo')
-
-        if ejeN < 0:
-            raise "c<0, profundidad del eje neutro no válida"
-        # xyConc = self.cord_conc(angulo)
-        # if ejeN >= max(xyConc[:, 1])*2*self.defConc/(self.defConc-max(self.fy)/self.Es):
-        #     return [self.Pnmax(), 0, 0, max(self.fy)/self.Es]
-        # if abs(angulo) < 0.0001:
-            # breakpoint()
-
-        rConc = self.result_conc(angulo, ejeN)
-        rRefu = self.result_ref(angulo, ejeN, rConc[3])
-        F = rConc[0]+rRefu[0]
-        FxX = rConc[1]+rRefu[1]
-        FxY = rConc[2]+rRefu[2]
-        # breakpoint()
-        return [F, FxX, FxY, rRefu[3]]
-
-# Este método se debe ampliar para poder calcular con un fi general y
-#  fi en función de Pu que disminuye a partir de pu=0 hasta Pu=0.10f'c
-    def fi_result(self, angulo, EjeN):
-        res = self.resultante(angulo, EjeN)
-        fi = ((self.fitracc-self.ficomp)/(self.deftrac-max(self.fy)/self.Es)
-              * (-res[3]-max(self.fy)/self.Es)+self.ficomp)
-        fi = min((self.fitracc, max((self.ficomp, fi))))
-        # print('fi resultante: angulo, c, fi', angulo, EjeN, fi)
-        return res[0]*fi, res[1]*fi, res[2]*fi, fi
-
-    def buscar_punto(self, P, PxX, PxY, angulo=None, c=None):
-        # self.areas_varillas()
-        # self.fy_varillas()
-
-        pos = PxY < 0
-
-        if (angulo is None) and (c is None):
-            asol = calc_ang(PxX, PxY, pos)
-            c = self.buscar_c(P, asol)
-            res = self.resultante(asol, c)
-            angulo = calc_ang(res[1], res[2], pos)  # primera aproximación del ángulo
-            c = self.buscar_c(P, angulo)
-            # print('1', angulo, c)
-        elif angulo is None:
-            asol = calc_ang(PxX, PxY, pos)
-            res = self.resultante(asol, c)
-            angulo = calc_ang(res[1], res[2], pos)  # primera aproximación del ángulo
-            c = self.buscar_c(P, angulo)
-            # print('2', angulo, c)
+            ta = 1000000
+            hpar = min((betac, seccion.x))
+            bpar = seccion.y
+    else:
+        htri = min((ht, betac))
+        hpar = min((cor[2][1]-cor[1][1], betac-htri))
+        htra = min((ht, betac-hpar-htri))
+        angbase = abs(angulo) % 180.0  # Este angulo se usa para calcular el bloque de Witney
+        if angbase > 90:
+            angbase = 180-angbase
+        if radians(angbase) < seccion.psi():
+            bpar = seccion.x/cos(radians(angbase))
+            ta = tan(radians(angbase))
         else:
-            c = self.buscar_c(P, angulo)
-            # print('3', angulo, c)
+            bpar = seccion.y/cos(radians(90-angbase))
+            ta = tan(radians(90-angbase))
+        btri = bpar/ht*htri
+        btra = bpar/ht*(ht-htra)
 
-        res = self.fi_result(angulo, c)
-        errP = abs(P-res[0])
-        errA = abs(calc_ang(PxX, PxY, pos)-calc_ang(res[1], res[2], pos))
-        if (errP < 0.1) and (errA < 0.01):
-            # print('4', angulo, c)
-            return [angulo, c]
+    # print('ta=',ta)
+    # if ta == 0:
+    #     ta = 0.00001
 
-        deltaC = 1
-        deltaA = 1
-        # print('5', angulo, c)
-        ip = 0
-        while (deltaC > 0.0001) or (deltaA > 0.01):
-            # print('6', angulo, c)
-            # breakpoint()
-            a1 = angulo
-            c1 = c
-            a2 = self.buscar_ang(PxX, PxY, c1, a1)
-            c2 = self.buscar_c(P, a2, c1)
-            a3 = self.buscar_ang(PxX, PxY, c2, a2)
-            c3 = self.buscar_c(P, a3, c2)
-            deltaA = abs(a3-a2)
-            deltaC = abs(c3-c2)
-            if (abs(a3-a1) < 0.01) and (abs(c3-c1) < 0.0001):
-                angulo = (a3+a2)/2
-                c = (c3+c2)/2
-            else:
-                angulo = a3
-                c = c3
-            # print('7', angulo, c)
-            ip = ip+1
-            # print('ip=', ip)
-            if ip > 10:
-                raise 'Buscar ángulo y eje neutro no converge'
+    A = [btri*htri/2,
+         bpar*hpar,
+         (bpar+btra)/2*htra]
+    x3 = cor[3][0]
+    x2 = cor[2][0]
+    x1 = cor[1][0]
+    X = [x3+htri/ht*(x2-x3+(x1-x3)*ht/(ymax-cor[1][1]))/3,
+         copysign(bpar/2, x1)+x2+(cor[0][0]-x2)*hpar/2/(cor[2][1]-cor[0][1]),
+         x1-copysign(1, x1)*(btra**2/2+htra*(btra/ta+bpar/2*ta) +
+                             htra**2/3*(1/ta**2-ta**2))/((bpar+btra)/2)]
+    Y = [ymax-2*htri/3,
+         cor[2][1]-hpar/2,
+         cor[1][1]-htra/3*(bpar+2*btra)/(bpar+btra)]
+    Ag = sum(A)
+    # breakpoint()
+    A = np.array(A)
+    Fuerza = Ag*0.85*seccion.fc*1000
+    xyro = np.array([[sum(A*np.array(X))/Ag],
+                     [sum(A*np.array(Y))/Ag]])
+    xy = rotar(xyro, angulo, invertir=True)
+    # print('Refuerzo: Fuerza=%.1f FxX=%.1f FxY=%.1f',
+    #       (Fuerza, Fuerza*xy[0, 0], Fuerza*xy[1, 0]))
+    # breakpoint()
+    return [Fuerza, Fuerza*xy[0, 0], Fuerza*xy[1, 0], yEje]
+
+
+def result_ref(seccion, angulo, ejeN, yEje, defConc=0.003, alfa=1.0):
+    # defConc   Ɛ deformación unitaria de falla del concreto
+    # alfa      α factor de amplificación por sobreresistencia del acero
+    cor = seccion.cord_ref(angulo)
+    defmin = 1
+    varilla = None
+    fuerza = []
+    if ejeN == 0:
+        ejeN = 0.0000001
+    for xy, var in zip(cor, seccion.varillas):
+        du = (xy[1]-yEje)*defConc/ejeN
+        if du < defmin:
+            defmin = du
+            varilla = var
+        if du > 0:
+            fuerza.append(min(var.fy*alfa, var.Es*du)*var.area*1000)
+        else:
+            fuerza.append(max(-var.fy*alfa, var.Es*du)*var.area*1000)
+    fuerza = np.array(fuerza)
+    Fuerza = np.sum(fuerza)
+    FxX = fuerza.dot(seccion.refXY[:, 0])
+    FxY = fuerza.dot(seccion.refXY[:, 1])
+    # print('Refuerzo: Fuerza=%.1f FxX=%.1f FxY=%.1f', (Fuerza, FxX, FxY))
+    return [Fuerza, FxX, FxY, defmin, varilla]
+
+
+vcc = pd.column_design_factors
+
+
+def resultante(seccion, angulo, ejeN, defConc=vcc['defConc'], alfa=vcc['alfa']):
+    # defConc   Ɛ deformación unitaria de falla del concreto
+    # alfa      α factor de amplificación por sobreresistencia del acero
+    if seccion.refXY == [] or seccion.refXY == []:
+        raise NameError('No se han ingresado varillas de refuerzo')
+
+    if ejeN < 0:
+        raise NameError("c<0, profundidad del eje neutro no válida")
+    # xyConc = sec.cord_conc(angulo)
+    # if ejeN >= max(xyConc[:, 1])*2*sec.defConc/(sec.defConc-max(sec.fy)/sec.Es):
+    #     return [sec.Pnmax(), 0, 0, max(sec.fy)/sec.Es]
+    # if abs(angulo) < 0.0001:
+        # breakpoint()
+
+    rConc = result_conc(seccion, angulo, ejeN)
+    rRefu = result_ref(seccion, angulo, ejeN, rConc[3], defConc, alfa)
+    F = rConc[0]+rRefu[0]
+    FxX = rConc[1]+rRefu[1]
+    FxY = rConc[2]+rRefu[2]
+    # breakpoint()
+    return [F, FxX, FxY, rRefu[3], rRefu[4]]
+
+
+# Este método se debe ampliar para poder calcular fi en función de Pu
+# que disminuye a partir de pu=0 hasta Pu=0.10f'c
+def fi_result(seccion, angulo, EjeN, defConc=vcc['defConc'], alfa=vcc['alfa'],
+              deftrac=vcc['deftrac'], ficomp=vcc['ficomp'], fitracc=vcc['fitracc']):
+    # defConc = 0.003 # Ɛ  deformación unitaria de falla del concreto
+    # deftrac = 0.005 # Ɛ  deformación unitaria para falla por tracción
+    # ficomp = 0.65   # ɸc para sección controlada por compresión
+    # fitracc = 0.90  # ɸt para sección controlada por tracción
+    # alfa = 1.0      # α  factor de amplificación por sobreresistencia del acero
+    res = resultante(seccion, angulo, EjeN, defConc, alfa)
+    fi = ((fitracc-ficomp)/(deftrac-res[4].fy/res[4].Es)
+          * (-res[3]-res[4].fy/res[4].Es)+ficomp)
+    fi = min((fitracc, max((ficomp, fi))))
+    # print('fi resultante: angulo=%.4f c=%.4f, fi=%.2f' % (angulo, EjeN, fi))
+    return res[0]*fi, res[1]*fi, res[2]*fi, fi, res[4]
+
+
+il = pd.iteration_limit
+
+
+def buscar_punto(sec, P, PxX, PxY, angulo=None, c=None):
+    # sec.areas_varillas()
+    # sec.fy_varillas()
+
+    pos = PxY < 0
+
+    if (angulo is None) and (c is None):
+        asol = calc_ang(PxX, PxY, pos)
+        c = buscar_c(sec, P, asol)
+        res = fi_result(sec, asol, c)
+        angulo = calc_ang(res[1], res[2], pos)  # primera aproximación del ángulo
+        c = buscar_c(sec, P, angulo)
+        # print('414 angulo=%.4f c=%.4f' % (angulo, c)')
+    elif angulo is None:
+        asol = calc_ang(PxX, PxY, pos)
+        res = fi_result(sec, asol, c)
+        angulo = calc_ang(res[1], res[2], pos)  # primera aproximación del ángulo
+        c = buscar_c(sec, P, angulo)
+        # print('420 angulo=%.4f c=%.4f' % (angulo, c)')
+    else:
+        c = buscar_c(sec, P, angulo)
+        # print('423 angulo=%.4f c=%.4f' % (angulo, c)')
+
+    res = fi_result(sec, angulo, c)
+    errP = abs(P-res[0])
+    errA = abs(calc_ang(PxX, PxY, pos)-calc_ang(res[1], res[2], pos))
+    if (errP < il['errP']*sec.Ag()*sec.fc) and (errA < il['errA']):
+        # print('429 angulo=%.4f c=%.4f' % (angulo, c)')
         return [angulo, c]
 
-    def buscar_c(self, P, angulo, c=None):
-
-        c1 = None
-        if c is None:
-            c1 = 0.4*min((self.x, self.y))
-            c2 = c1+0.1*min((self.x, self.y))
+    deltaC = 1
+    deltaA = 1
+    # print('434 angulo=%.4f c=%.4f' % (angulo, c)')
+    ip = 0
+    while (deltaC > il['errC']) or (deltaA > il['errA']):
+        # print('437 angulo=%.4f c=%.4f' % (angulo, c)')
+        # breakpoint()
+        a1 = angulo
+        c1 = c
+        a2 = buscar_ang(sec, PxX, PxY, c1, a1)
+        c2 = buscar_c(sec, P, a2, c1)
+        a3 = buscar_ang(sec, PxX, PxY, c2, a2)
+        c3 = buscar_c(sec, P, a3, c2)
+        deltaA = abs(a3-a2)
+        deltaC = abs(c3-c2)
+        if (abs(a3-a1) < il['errA']) and (abs(c3-c1) < il['errC']):
+            angulo = (a3+a2)/2
+            c = (c3+c2)/2
         else:
-            c1 = c-0.05*min((self.x, self.y))
-            c2 = c
-        p1 = self.fi_result(angulo, c1)[0]
-        p2 = self.fi_result(angulo, c2)[0]
-        # breakpoint()
-        # print('380 P=%.1f p1=%.1f p2=%.1f' % (P, p1, p2))
-        # print('381 ci=%.4f c1=%.4f c2=%.4f' % ((c2-c1)/(p2-p1)*(P-p1)+c1, c1, c2))
-        ic = 0
-        while abs(P-p2) > (0.0001*self.Ag()*self.fc):
-            ci = (c2-c1)/(p2-p1)*(P-p1)+c1
-            if ci < 0:
-                ci = 0
-            # print('422 P p1 p2', P, p1, p2)
-            # print('423 ci c1 c2', ci, c1, c2)
-            # breakpoint()
-            c1 = c2
-            p1 = p2
-            c2 = ci
-            p2 = self.fi_result(angulo, c2)[0]
-            ic = ic+1
-            if ic > 50:
-                raise 'Buscar eje neutro no converge'
-        # print('c2', angulo, c2)
-        # print('ic=', ic)
-        return c2
+            angulo = a3
+            c = c3
+        # print('453 angulo=%.4f c=%.4f' % (angulo, c))
+        ip = ip+1
+        # print('ip=', ip)
+        if ip > il['ip']:
+            res = fi_result(sec, angulo, c)
+            raise NameError('objetivo: P=%.1f angulo=%.4f\n' % (P, asol) +
+                            'resultado: P=%.1f angulo=%.4f\n' % (res[0], angulo) +
+                            'Buscar ángulo y eje neutro no converge ip>%d' % ip)
+    return [angulo, c]
 
-    def buscar_ang(self, PxX, PxY, c, a=None):
-        if c == 0:
-            raise "c=0, ángulo inderterminado"
-        pos = PxY < 0
-        asol = calc_ang(PxX, PxY, pos)
+
+def buscar_c(sec, P, angulo, c=None):
+
+    c1 = None
+    if c is None:
+        c1 = 0.4*min((sec.x, sec.y))
+        c2 = c1+0.1*min((sec.x, sec.y))
+    else:
+        c1 = c-0.05*min((sec.x, sec.y))
+        c2 = c
+    p1 = fi_result(sec, angulo, c1)[0]
+    p2 = fi_result(sec, angulo, c2)[0]
+    # breakpoint()
+    # print('477 P=%.1f p1=%.1f p2=%.1f' % (P, p1, p2))
+    # print('478 ci=%.4f c1=%.4f c2=%.4f' % ((c2-c1)/(p2-p1)*(P-p1)+c1, c1, c2))
+    ic = 0
+    while abs(P-p2) > (il['errP']*sec.Ag()*sec.fc):
+        ci = (c2-c1)/(p2-p1)*(P-p1)+c1
+        if ci < 0:
+            ci = 0
+        # print('484 P=%.1f p1=%.1f p2=%.1f' % (P, p1, p2))
+        # print('485 ci=%.4f c1=%.4f c2=%.4f' % (ci, c1, c2))
         # breakpoint()
-        if a is None:
-            res = self.resultante(asol, c)
-            a = calc_ang(res[1], res[2], False)  # primera aproximación
-        res = self.resultante(a, c)
-        ar = calc_ang(res[1], res[2], pos)
-        if abs(asol-ar) < 0.001:
-            return a
-        if a < -180:
-            a = max(-180, a)
-        if a > 450:
-            a = min(450, a)
+        c1 = c2
+        p1 = p2
+        c2 = ci
+        p2 = fi_result(sec, angulo, c2)[0]
+        ic = ic+1
+        if ic > il['ic']:
+            raise NameError('P=%.1f p1=%.1f p2=%.1f' % (P, p1, p2) +
+                            'ci=%.4f c1=%.4f c2=%.4f' % ((c2-c1)/(p2-p1)*(P-p1)+c1, c1, c2) +
+                            'Buscar eje neutro no converge ic>%d' % ic)
+    # print('c2', angulo, c2)
+    # print('ic=', ic)
+    return c2
+
+
+def buscar_ang(sec, PxX, PxY, c, a=None):
+    if c == 0:
+        raise NameError("c=0, ángulo inderterminado")
+    pos = PxY < 0
+    asol = calc_ang(PxX, PxY, pos)
+    # breakpoint()
+    if a is None:
+        res = resultante(sec, asol, c)
+        a = calc_ang(res[1], res[2], False)  # primera aproximación
+    res = resultante(sec, a, c)
+    ar = calc_ang(res[1], res[2], pos)
+    if abs(asol-ar) < il['errA']/10:
+        return a
+    if a < -180:
+        a = max(-180, a)
+    if a > 450:
+        a = min(450, a)
+    aci = a
+    ari = ar
+    acs = a-copysign(0.1, asol-ar)
+    res = resultante(sec, acs, c)
+    ars = calc_ang(res[1], res[2], pos)  # primera aproximación
+    if acs < -180:
+        acs = max(-180, acs)
+    if acs > 450:
+        acs = min(450, acs)
+    if ars < ari:
+        a = acs
+        ar = ars
+        acs = aci
+        ars = ari
         aci = a
         ari = ar
-        acs = a-copysign(0.1, asol-ar)
-        res = self.resultante(acs, c)
-        ars = calc_ang(res[1], res[2], pos)  # primera aproximación
-        if acs < -180:
-            acs = max(-180, acs)
-        if acs > 450:
-            acs = min(450, acs)
+    a = aci+(asol-ari)*(acs-aci)/(ars-ari)
+    res = resultante(sec, a, c)
+    ar = calc_ang(res[1], res[2], pos)
+    if a < -180:
+        a = max(-180, a)
+    if a > 450:
+        a = min(450, a)
+    ia = 1
+    while (asol < ari or ars < asol) and abs(asol-ar) > il['errA']/10:
+        # print('541 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
+        # print('542 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
+        if ar < asol:
+            if ari < asol:
+                if ari < ar:
+                    aci = a
+                    ari = ar
+                else:
+                    raise NameError('550 asol=%.4f ar=%.4f ari=%.4f ars=%.4f\n'
+                                    % (asol, ar, ari, ars) +
+                                    '552 asol=%.4f a=%.4f aci=%.4f acs=%.4f\n'
+                                    % (asol, a, aci, acs) +
+                                    'Buscar ángulo no converge ia=%d' % (ia))
+            else:
+                aci = a
+                ari = ar
+        else:
+            if asol < ars:
+                if ar < ars:
+                    acs = a
+                    ars = ar
+                else:
+                    raise NameError('564 asol=%.4f ar=%.4f ari=%.4f ars=%.4f\n'
+                                    % (asol, ar, ari, ars) +
+                                    '566 asol=%.4f a=%.4f aci=%.4f acs=%.4f\n'
+                                    % (asol, a, aci, acs) +
+                                    'Buscar ángulo no converge ia=%d' % (ia))
+            else:
+                acs = a
+                ars = ar
         if ars < ari:
             a = acs
             ar = ars
@@ -506,87 +582,45 @@ class seccion:
             aci = a
             ari = ar
         a = aci+(asol-ari)*(acs-aci)/(ars-ari)
-        res = self.resultante(a, c)
+        # if a > 360 or a < 0:
+        #     a = ajustar_angulo(a, not pos)
+        res = resultante(sec, a, c)
         ar = calc_ang(res[1], res[2], pos)
+        ia = ia+1
+        if ia > il['ia']:
+            print('ia=%d' % (ia))
+            raise NameError('Buscar ángulo no converge ia>%d' % (ia))
+    while abs(asol-ar) > il['errA']/10:
+        # print('586 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
+        # print('587 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
+        # if ars-ari == 0:
+        #     breakpoint()
+        # print('pendiente=', (acs-aci)/(ars-ari))
+        if ari < ar and ar < asol:
+            aci = a
+            ari = ar
+        elif asol < ar and ar < ars:
+            acs = a
+            ars = ar
+        else:
+            raise NameError('601 asol=%.4f ar=%.4f ari=%.4f ars=%.4f\n'
+                            % (asol, ar, ari, ars) +
+                            '603 asol=%.4f a=%.4f aci=%.4f acs=%.4f\n'
+                            % (asol, a, aci, acs) +
+                            'Buscar ángulo no converge ia=%d' % (ia))
+        a = aci+(asol-ari)*(acs-aci)/(ars-ari)
         if a < -180:
             a = max(-180, a)
         if a > 450:
             a = min(450, a)
-        ia = 1
-        while (asol < ari or ars < asol) and abs(asol-ar) > 0.001:
-            # print('508 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
-            # print('509 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
-            if ar < asol:
-                if ari < asol:
-                    if ari < ar:
-                        aci = a
-                        ari = ar
-                    else:
-                        print('516 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
-                        print('517 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
-                        print('ia=%d' % (ia))
-                        raise 'Buscar ángulo no converge'
-                else:
-                    aci = a
-                    ari = ar
-            else:
-                if asol < ars:
-                    if ar < ars:
-                        acs = a
-                        ars = ar
-                    else:
-                        print('528 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
-                        print('529 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
-                        print('ia=%d' % (ia))
-                        raise 'Buscar ángulo no converge'
-                else:
-                    acs = a
-                    ars = ar
-            if ars < ari:
-                a = acs
-                ar = ars
-                acs = aci
-                ars = ari
-                aci = a
-                ari = ar
-            a = aci+(asol-ari)*(acs-aci)/(ars-ari)
-            # if a > 360 or a < 0:
-            #     a = ajustar_angulo(a, not pos)
-            res = self.resultante(a, c)
-            ar = calc_ang(res[1], res[2], pos)
-            ia = ia+1
-            if ia > 100:
-                print('ia=%d' % (ia))
-                raise 'Buscar ángulo no converge'
-        while abs(asol-ar) > 0.001:
-            # print('550 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
-            # print('551 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
-            # if ars-ari == 0:
-            #     breakpoint()
-            # print('pendiente=', (acs-aci)/(ars-ari))
-            if ari < ar and ar < asol:
-                aci = a
-                ari = ar
-            elif asol < ar and ar < ars:
-                acs = a
-                ars = ar
-            else:
-                print('556 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
-                print('563 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
-                print('ia=%d' % (ia))
-                raise 'Buscar ángulo no converge'
-            a = aci+(asol-ari)*(acs-aci)/(ars-ari)
-            if a < -180:
-                a = max(-180, a)
-            if a > 450:
-                a = min(450, a)
-            res = self.resultante(a, c)
-            ar = calc_ang(res[1], res[2], pos)
-            ia = ia+1
-            if ia > 100:
-                print('583 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
-                print('584 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
-                print('ia=%d' % (ia))
-                raise 'Buscar ángulo no converge ia>100'
-        # print('ia=%d asol=%.4f ar=%.4f a=%.4f c=%.4f' % (ia, asol, ar, a, c))
-        return a
+        res = resultante(sec, a, c)
+        ar = calc_ang(res[1], res[2], pos)
+        ia = ia+1
+        if ia > il['ia']:
+            raise NameError('615 asol=%.4f ar=%.4f ari=%.4f ars=%.4f\n'
+                            % (asol, ar, ari, ars) +
+                            '617 asol=%.4f a=%.4f aci=%.4f acs=%.4f\n'
+                            % (asol, a, aci, acs) +
+                            'Buscar ángulo no converge ia=%d' % (ia))
+    # print('ia=%d asol=%.4f ar=%.4f a=%.4f c=%.4f' % (ia, asol, ar, a, c))
+    return a
