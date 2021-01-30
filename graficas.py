@@ -44,14 +44,17 @@ class grafica ():
     def cla(self):
         self.axe.cla()
 
+    def getAxeLines(self):
+        return self.axe.lines
+
     def add3d(self, nparray, label):
-        self.axe.plot(nparray[:, 0], nparray[:, 1], nparray[:, 2], label=label)
+        self.axelines = self.axe.plot(nparray[:, 0], nparray[:, 1], nparray[:, 2], label=label)
         print('grafica 3d añadida')
         # print('nparray3d')
         # print(nparray)
 
     def add2D(self, nparray, label):
-        self.axe.plot(nparray[:, 0], nparray[:, 1], '+-', label=label)
+        self.axelines = self.axe.plot(nparray[:, 0], nparray[:, 1], '+-', label=label)
         print('grafica 2D añadida')
         # print('nparray2d')
         # print(nparray)

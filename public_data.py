@@ -19,7 +19,7 @@ column_design_factors = {'defConc': 0.003,  # Ɛ  deformación unitaria de falla
 
 iteration_limit = {'ia': 100,  # iteraciones por ángulo
                    'ic': 50,   # iteraciones por profundidad c
-                   'ip': 20,   # iteraciones por ángulo y c
+                   'ip': 100,   # iteraciones por ángulo y c
                    'errC': 0.0001,  # error máximo para profundidad c
                    'errA': 0.01,    # error máximo para el ángulo
                    'errP': 0.0005   # error máximo para fuerza P = errP*Ag*f'c

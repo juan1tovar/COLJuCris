@@ -314,8 +314,8 @@ def result_conc(seccion, angulo, ejeN):
     x1 = cor[1][0]
     X = [x3+htri/ht*(x2-x3+(x1-x3)*ht/(ymax-cor[1][1]))/3,
          copysign(bpar/2, x1)+x2+(cor[0][0]-x2)*hpar/2/(cor[2][1]-cor[0][1]),
-         x1-copysign(1, x1)*(btra**2/2+htra*(btra/ta+bpar/2*ta) +
-                             htra**2/3*(1/ta**2-ta**2))/((bpar+btra)/2)]
+         x1-copysign(1, x1)*(btra**2/2+htra*(btra/ta+bpar/2*ta)
+                             + htra**2/3*(1/ta**2-ta**2))/((bpar+btra)/2)]
     Y = [ymax-2*htri/3,
          cor[2][1]-hpar/2,
          cor[1][1]-htra/3*(bpar+2*btra)/(bpar+btra)]
@@ -386,14 +386,16 @@ def resultante(seccion, angulo, ejeN, defConc=vcc['defConc'], alfa=vcc['alfa']):
 
 # Este método se debe ampliar para poder calcular fi en función de Pu
 # que disminuye a partir de pu=0 hasta Pu=0.10f'c
-def fi_result(seccion, angulo, EjeN, defConc=vcc['defConc'], alfa=vcc['alfa'],
-              deftrac=vcc['deftrac'], ficomp=vcc['ficomp'], fitracc=vcc['fitracc']):
+def fi_result(seccion, angulo, EjeN, defConc=vcc['defConc'], deftrac=vcc['deftrac'],
+              ficomp=vcc['ficomp'], fitracc=vcc['fitracc'], alfa=vcc['alfa']):
     # defConc = 0.003 # Ɛ  deformación unitaria de falla del concreto
     # deftrac = 0.005 # Ɛ  deformación unitaria para falla por tracción
     # ficomp = 0.65   # ɸc para sección controlada por compresión
     # fitracc = 0.90  # ɸt para sección controlada por tracción
     # alfa = 1.0      # α  factor de amplificación por sobreresistencia del acero
     res = resultante(seccion, angulo, EjeN, defConc, alfa)
+    # res[3]    # deformación de la varilla extrema
+    # res[4]    # varilla extrema
     fi = ((fitracc-ficomp)/(deftrac-res[4].fy/res[4].Es)
           * (-res[3]-res[4].fy/res[4].Es)+ficomp)
     fi = min((fitracc, max((ficomp, fi))))
@@ -438,6 +440,7 @@ def buscar_punto(sec, P, PxX, PxY, angulo=None, c=None):
     deltaA = 1
     # print('434 angulo=%.4f c=%.4f' % (angulo, c)')
     ip = 0
+    ipc = 0
     while (deltaC > il['errC']) or (deltaA > il['errA']):
         # print('437 angulo=%.4f c=%.4f' % (angulo, c)')
         # breakpoint()
@@ -449,20 +452,113 @@ def buscar_punto(sec, P, PxX, PxY, angulo=None, c=None):
         c3 = buscar_c(sec, P, a3, c2)
         deltaA = abs(a3-a2)
         deltaC = abs(c3-c2)
+        while ((abs(a3-a1) < il['errA']) and (abs(c3-c1) < il['errC'])
+               and ((deltaC > il['errC']) or (deltaA > il['errA']))):
+            # res = fi_result(sec, a1, c1)
+            # errP11 = abs(P-res[0])
+            # errA11 = abs(calc_ang(PxX, PxY, pos)-calc_ang(res[1], res[2], pos))
+            # res = fi_result(sec, a2, c2)
+            # errP22 = abs(P-res[0])
+            # errA22 = abs(calc_ang(PxX, PxY, pos)-calc_ang(res[1], res[2], pos))
+            # res = fi_result(sec, a3, c3)
+            # errP33 = abs(P-res[0])
+            # errA33 = abs(calc_ang(PxX, PxY, pos)-calc_ang(res[1], res[2], pos))
+            # print('ipc=%d\n' % ipc
+            #       + 'a1=%.4f c1=%.4f errP=%.4f errA=%.4f\n' % (a1, c1, errP11, errA11)
+            #       + 'a2=%.4f c2=%.4f errP=%.4f errA=%.4f\n' % (a2, c2, errP22, errA22)
+            #       + 'a3=%.4f c3=%.4f errP=%.4f errA=%.4f\n' % (a3, c3, errP33, errA33))
+            a1 = (a3+a2)/2
+            c1 = buscar_c(sec, P, a1, c3)
+            a2 = buscar_ang(sec, PxX, PxY, c1, a1)
+            c2 = buscar_c(sec, P, a2, c1)
+            a3 = buscar_ang(sec, PxX, PxY, c2, a2)
+            c3 = buscar_c(sec, P, a3, c2)
+            ipc = ipc+1
+            # res = fi_result(sec, a1, c1)
+            # errP11 = abs(P-res[0])
+            # errA11 = abs(calc_ang(PxX, PxY, pos)-calc_ang(res[1], res[2], pos))
+            # res = fi_result(sec, a2, c2)
+            # errP22 = abs(P-res[0])
+            # errA22 = abs(calc_ang(PxX, PxY, pos)-calc_ang(res[1], res[2], pos))
+            # res = fi_result(sec, a3, c3)
+            # errP33 = abs(P-res[0])
+            # errA33 = abs(calc_ang(PxX, PxY, pos)-calc_ang(res[1], res[2], pos))
+            # print('ipc=%d\n' % ipc
+            #       + 'a1=%.4f c1=%.4f errP=%.4f errA=%.4f\n' % (a1, c1, errP11, errA11)
+            #       + 'a2=%.4f c2=%.4f errP=%.4f errA=%.4f\n' % (a2, c2, errP22, errA22)
+            #       + 'a3=%.4f c3=%.4f errP=%.4f errA=%.4f\n' % (a3, c3, errP33, errA33))
+            while (((a2-a1)*(a1-a3) > 0) or ((c2-c1)*(c1-c3) > 0)
+                   and ((deltaC > il['errC']) or (deltaA > il['errA']))):
+                a1 = (a1+a2)/2
+                c1 = buscar_c(sec, P, a1, c2)
+                a2 = buscar_ang(sec, PxX, PxY, c1, a1)
+                c2 = buscar_c(sec, P, a2, c1)
+                a3 = buscar_ang(sec, PxX, PxY, c2, a2)
+                c3 = buscar_c(sec, P, a3, c2)
+                deltaA = abs(a3-a2)
+                deltaC = abs(c3-c2)
+                ipc = ipc+1
+                # res = fi_result(sec, a1, c1)
+                # errP11 = abs(P-res[0])
+                # errA11 = abs(calc_ang(PxX, PxY, pos)-calc_ang(res[1], res[2], pos))
+                # res = fi_result(sec, a2, c2)
+                # errP22 = abs(P-res[0])
+                # errA22 = abs(calc_ang(PxX, PxY, pos)-calc_ang(res[1], res[2], pos))
+                # res = fi_result(sec, a3, c3)
+                # errP33 = abs(P-res[0])
+                # errA33 = abs(calc_ang(PxX, PxY, pos)-calc_ang(res[1], res[2], pos))
+                # print('--ipc=%d\n' % ipc
+                #       + 'a1=%.4f c1=%.4f errP=%.4f errA=%.4f\n' % (a1, c1, errP11, errA11)
+                #       + 'a2=%.4f c2=%.4f errP=%.4f errA=%.4f\n' % (a2, c2, errP22, errA22)
+                #       + 'a3=%.4f c3=%.4f errP=%.4f errA=%.4f\n' % (a3, c3, errP33, errA33))
+                if ipc > il['ip']:
+                    res = fi_result(sec, a1, c1)
+                    errP = abs(P-res[0])
+                    errA = abs(calc_ang(PxX, PxY, pos)-calc_ang(res[1], res[2], pos))
+                    if (errP < il['errP']*sec.Ag()*sec.fc) and (errA < il['errA']):
+                        # print('429 angulo=%.4f c=%.4f' % (angulo, c)')
+                        return [a1, c1]
+                    raise NameError('objetivo: P=%.1f angulo=%.4f\n' % (P, asol)
+                                    + 'resultado: P=%.1f angulo=%.4f\n'
+                                    % (res[0], calc_ang(res[1], res[2], pos))
+                                    + 'Buscar ángulo y eje neutro no converge\n'
+                                    + 'iteraciones ip=%d\n' % ip
+                                    + 'iteraciones ipc=%d' % ipc)
+            deltaA = abs(a3-a2)
+            deltaC = abs(c3-c2)
         if (abs(a3-a1) < il['errA']) and (abs(c3-c1) < il['errC']):
             angulo = (a3+a2)/2
-            c = (c3+c2)/2
+            c = buscar_c(sec, P, angulo, c3)
         else:
             angulo = a3
             c = c3
-        # print('453 angulo=%.4f c=%.4f' % (angulo, c))
+        # print('485 angulo=%.4f  c=%.4f\n' % (angulo, c)
+        #       + '        a1=%.4f c1=%.4f\n' % (a1, c1)
+        #       + '        a2=%.4f c2=%.4f\n' % (a2, c2)
+        #       + '        a3=%.4f c3=%.4f\n' % (a3, c3))
         ip = ip+1
         # print('ip=', ip)
         if ip > il['ip']:
             res = fi_result(sec, angulo, c)
-            raise NameError('objetivo: P=%.1f angulo=%.4f\n' % (P, asol) +
-                            'resultado: P=%.1f angulo=%.4f\n' % (res[0], angulo) +
-                            'Buscar ángulo y eje neutro no converge ip>%d' % ip)
+            errP = abs(P-res[0])
+            errA = abs(calc_ang(PxX, PxY, pos)-calc_ang(res[1], res[2], pos))
+            if (errP < il['errP']*sec.Ag()*sec.fc) and (errA < il['errA']):
+                # print('429 angulo=%.4f c=%.4f' % (angulo, c)')
+                return [angulo, c]
+            print('ipc=', ipc)
+            raise NameError('objetivo: P=%.1f angulo=%.4f\n' % (P, asol)
+                            + 'resultado: P=%.1f angulo=%.4f\n'
+                            % (res[0], calc_ang(res[1], res[2], pos))
+                            + 'Buscar ángulo y eje neutro iteraciones máximas ip>%d' % ip)
+    # print('ip=', ip)
+    # print('ipc=', ipc)
+    # res = fi_result(sec, angulo, c)
+    # errP = abs(P-res[0])
+    # errA = abs(calc_ang(PxX, PxY, pos)-calc_ang(res[1], res[2], pos))
+    # print('objetivo: P=%.1f angulo=%.4f\n' % (P, asol)
+    #       + 'resultado: P=%.1f angulo=%.4f\n'
+    #       % (res[0], calc_ang(res[1], res[2], pos))
+    #       + 'ai=%.4f ci=%.4f errP=%.4f errA=%.4f\n' % (angulo, c, errP, errA))
     return [angulo, c]
 
 
@@ -473,7 +569,7 @@ def buscar_c(sec, P, angulo, c=None):
         c1 = 0.4*min((sec.x, sec.y))
         c2 = c1+0.1*min((sec.x, sec.y))
     else:
-        c1 = c-0.05*min((sec.x, sec.y))
+        c1 = max(0, c-0.05*min((sec.x, sec.y)))
         c2 = c
     p1 = fi_result(sec, angulo, c1)[0]
     p2 = fi_result(sec, angulo, c2)[0]
@@ -494,9 +590,9 @@ def buscar_c(sec, P, angulo, c=None):
         p2 = fi_result(sec, angulo, c2)[0]
         ic = ic+1
         if ic > il['ic']:
-            raise NameError('P=%.1f p1=%.1f p2=%.1f' % (P, p1, p2) +
-                            'ci=%.4f c1=%.4f c2=%.4f' % ((c2-c1)/(p2-p1)*(P-p1)+c1, c1, c2) +
-                            'Buscar eje neutro no converge ic>%d' % ic)
+            raise NameError('P=%.1f p1=%.1f p2=%.1f' % (P, p1, p2)
+                            + 'ci=%.4f c1=%.4f c2=%.4f' % ((c2-c1)/(p2-p1)*(P-p1)+c1, c1, c2)
+                            + 'Buscar eje neutro no converge ic>%d' % ic)
     # print('c2', angulo, c2)
     # print('ic=', ic)
     return c2
@@ -511,116 +607,67 @@ def buscar_ang(sec, PxX, PxY, c, a=None):
     if a is None:
         res = resultante(sec, asol, c)
         a = calc_ang(res[1], res[2], False)  # primera aproximación
+    else:
+        a = 45
+    fasol = 90-asol
+    acs = fasol-fasol % 90  # la pendiente es negativa entonces acs es menor aci
+    aci = acs+90
+    if a < acs or aci < a:
+        a = acs+a % 90
     res = resultante(sec, a, c)
     ar = calc_ang(res[1], res[2], pos)
     if abs(asol-ar) < il['errA']/10:
         return a
-    if a < -180:
-        a = max(-180, a)
-    if a > 450:
-        a = min(450, a)
-    aci = a
-    ari = ar
-    acs = a-copysign(0.1, asol-ar)
-    res = resultante(sec, acs, c)
-    ars = calc_ang(res[1], res[2], pos)  # primera aproximación
-    if acs < -180:
-        acs = max(-180, acs)
-    if acs > 450:
-        acs = min(450, acs)
-    if ars < ari:
-        a = acs
-        ar = ars
-        acs = aci
-        ars = ari
+    if abs(asol-ar) > 90:
+        raise NameError("caudránte equivocado")
+    ari = ar-ar % 90
+    ars = ari+90
+    if asol < ari or ars < asol:
+        raise NameError("caudránte equivocado")
+    if asol > ar:
         aci = a
         ari = ar
-    a = aci+(asol-ari)*(acs-aci)/(ars-ari)
+        ars = ar-ar % 90+90
+    else:
+        acs = a
+        ars = ar
+        ari = ar-ar % 90
+    a = a-copysign(0.1, asol-ar)
     res = resultante(sec, a, c)
     ar = calc_ang(res[1], res[2], pos)
-    if a < -180:
-        a = max(-180, a)
-    if a > 450:
-        a = min(450, a)
-    ia = 1
-    while (asol < ari or ars < asol) and abs(asol-ar) > il['errA']/10:
-        # print('541 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
-        # print('542 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
-        if ar < asol:
-            if ari < asol:
-                if ari < ar:
-                    aci = a
-                    ari = ar
-                else:
-                    raise NameError('550 asol=%.4f ar=%.4f ari=%.4f ars=%.4f\n'
-                                    % (asol, ar, ari, ars) +
-                                    '552 asol=%.4f a=%.4f aci=%.4f acs=%.4f\n'
-                                    % (asol, a, aci, acs) +
-                                    'Buscar ángulo no converge ia=%d' % (ia))
-            else:
-                aci = a
-                ari = ar
-        else:
-            if asol < ars:
-                if ar < ars:
-                    acs = a
-                    ars = ar
-                else:
-                    raise NameError('564 asol=%.4f ar=%.4f ari=%.4f ars=%.4f\n'
-                                    % (asol, ar, ari, ars) +
-                                    '566 asol=%.4f a=%.4f aci=%.4f acs=%.4f\n'
-                                    % (asol, a, aci, acs) +
-                                    'Buscar ángulo no converge ia=%d' % (ia))
-            else:
-                acs = a
-                ars = ar
-        if ars < ari:
-            a = acs
-            ar = ars
-            acs = aci
-            ars = ari
-            aci = a
-            ari = ar
-        a = aci+(asol-ari)*(acs-aci)/(ars-ari)
-        # if a > 360 or a < 0:
-        #     a = ajustar_angulo(a, not pos)
-        res = resultante(sec, a, c)
-        ar = calc_ang(res[1], res[2], pos)
-        ia = ia+1
-        if ia > il['ia']:
-            print('ia=%d' % (ia))
-            raise NameError('Buscar ángulo no converge ia>%d' % (ia))
+    ia = 0
     while abs(asol-ar) > il['errA']/10:
-        # print('586 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
-        # print('587 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
+        # print('640 asol=%.4f ar=%.4f ari=%.4f ars=%.4f' % (asol, ar, ari, ars))
+        # print('641 asol=%.4f a=%.4f aci=%.4f acs=%.4f' % (asol, a, aci, acs))
         # if ars-ari == 0:
         #     breakpoint()
         # print('pendiente=', (acs-aci)/(ars-ari))
-        if ari < ar and ar < asol:
+        if (ars+ari)/2-asol > 0:  # el siguiente punto se calcula con el más cercano a la solición
+            ar2 = ari
+            a2 = aci
+        else:
+            ar2 = ars
+            a2 = acs
+        if asol > ar:
             aci = a
             ari = ar
-        elif asol < ar and ar < ars:
+        else:
             acs = a
             ars = ar
-        else:
-            raise NameError('601 asol=%.4f ar=%.4f ari=%.4f ars=%.4f\n'
-                            % (asol, ar, ari, ars) +
-                            '603 asol=%.4f a=%.4f aci=%.4f acs=%.4f\n'
-                            % (asol, a, aci, acs) +
-                            'Buscar ángulo no converge ia=%d' % (ia))
-        a = aci+(asol-ari)*(acs-aci)/(ars-ari)
-        if a < -180:
-            a = max(-180, a)
-        if a > 450:
-            a = min(450, a)
+        if asol < ari or ars < asol:
+            raise NameError("Valor fuera de los límites")
+        a = a+(asol-ar)*(a-a2)/(ar-ar2)
+        if a < acs or aci < a:
+            a = (aci+acs)/2
         res = resultante(sec, a, c)
         ar = calc_ang(res[1], res[2], pos)
+
         ia = ia+1
         if ia > il['ia']:
-            raise NameError('615 asol=%.4f ar=%.4f ari=%.4f ars=%.4f\n'
-                            % (asol, ar, ari, ars) +
-                            '617 asol=%.4f a=%.4f aci=%.4f acs=%.4f\n'
-                            % (asol, a, aci, acs) +
-                            'Buscar ángulo no converge ia=%d' % (ia))
+            raise NameError('660 asol=%.4f ar=%.4f ari=%.4f ars=%.4f\n'
+                            % (asol, ar, ari, ars)
+                            + '662 asol=%.4f a=%.4f aci=%.4f acs=%.4f\n'
+                            % (asol, a, aci, acs)
+                            + 'Buscar ángulo no converge ia=%d' % (ia))
     # print('ia=%d asol=%.4f ar=%.4f a=%.4f c=%.4f' % (ia, asol, ar, a, c))
     return a
