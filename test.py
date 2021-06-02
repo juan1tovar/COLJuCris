@@ -14,12 +14,14 @@ import public_data as pd
 sys.excepthook = debugexc.info
 vcc = pd.column_design_factors
 
-Fc = 28
-X = 1.5
-Y = .2
-angulo = 45
+Fc = 21
+X = .4
+Y = .25
+angulo = -10.18
 # c = 0.2
-Pu = -700
+Pu = -53
+PxX = -3.04
+PxY = -6.27
 recu = 0.04
 sec = s.seccion(Fc, X, Y)
 np.set_printoptions(precision=3, suppress=True,)
@@ -27,28 +29,29 @@ print("dimensión x=%.3f m dimensión y=%.3f"
       % (sec.x, sec.y))
 print("f'c=%.1f MPa, E=%.2f MPa, defc=%.3f"
       % (sec.fc, sec.Ec_MPa(), vcc['defConc']))
-# print("coordenas de las equinas a 0°")
-# print(sec.cord_conc(0))class
-# print("coordenas de las equinas a angulo")class
-# print(sec.cord_conc(angulo))
+print("coordenas de las equinas a 0°")
+print(sec.cord_conc(0))
+print("coordenas de las equinas a angulo")
+print(sec.cord_conc(angulo))
 # breakpoint()
 var1 = s.seccion_varilla('#6', 420, 200000)
 var2 = s.seccion_varilla('#6', 420, 200000)
 varf = s.seccion_varilla('#3', 420, 200000)
-sec.set_ref_sim(3, 3, var1, var2, varf,
+sec.set_ref_sim(2, 3, var1, var2, varf,
                 recu, opcion='esquinero')
 # print('Refuerzo XY, Varilla, Área')
 # print(sec.refXY, sec.varillas)
-print("coordenas de las varillas rotadas angulo=", angulo)
-print(sec.cord_ref(angulo))
+# print("coordenas de las varillas rotadas angulo=", angulo)
+# print(sec.cord_ref(angulo))
 # print(var[0:2] for var in sXxY.Vari)
 # print(np.array(sXxY.iteracion(angulo, 0.52)))
 # sec.areas_varillas()
 # sec.fy = 420*np.ones(len(sXxY.AreasRef))
-# angulo, c = sXxY.buscar_punto(1775, 115.8, -467.2)
+# angulo, c = s.buscar_punto(sec, Pu, PxX, PxY)
 # print(angulo, c)
-# res = sec.resultante(angulo, c)
-# print(res)
+# breakpoint()
+res = s.result_conc(sec, -4.448965545, 0.306521003568861)
+print('res', res)
 # fires = sec.fi_result(angulo, c)
 # print(fires)
 # print(calc_ang(fires[1], fires[2]))
@@ -57,20 +60,20 @@ graf3D = graficas.grafica(is_3D=True)
 # ventana = interface.tkwindow(graf)
 pmm = np.array(curvas.vertical(sec, angulo))
 graf3D.addPMM(pmm, str(angulo)+'°')
-# graf3D.show()
+graf3D.show()
 # grafver = graficas.grafica(is_3D=False)
 # grafver.addPM(pmm, str(angulo)+'°')
 # grafver.show()
-grafhor = graficas.grafica(is_3D=False)
-parlem = np.array(curvas.horizontal(sec, Pu, metodo='fatcircle'))
-grafhor.add2D(parlem, "parlem")
-solici = np.array(curvas.horizontal(sec, Pu, metodo='ang_sol'))
-grafhor.add2D(solici, "ang sol")
-column = np.array(curvas.horizontal(sec, Pu, metodo='ang_eje'))
-grafhor.add2D(column, "ang_col")
-grafhor.show()
+# grafhor = graficas.grafica(is_3D=False)
+# parlem = np.array(curvas.horizontal(sec, Pu, metodo='fatcircle'))
+# grafhor.add2D(parlem, "parlem")
+# solici = np.array(curvas.horizontal(sec, Pu, metodo='ang_sol'))
+# grafhor.add2D(solici, "ang sol")
+# column = np.array(curvas.horizontal(sec, Pu, metodo='ang_eje'))
+# grafhor.add2D(column, "ang_col")
+# grafhor.show()
 
-print(*grafhor.axe.lines)
+# print(*grafhor.axe.lines)
 # grafhor.axe.lines[0].remove()
 # print(*grafhor.axe.lines)
 # grafhor.show()

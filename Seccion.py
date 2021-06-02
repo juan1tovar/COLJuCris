@@ -23,8 +23,10 @@ def rotar(coordenadas, grados, invertir=False):
     t = np.array([[cos(a), -sin(a)],
                   [sin(a), cos(a)]])
     if invertir:
+        # breakpoint()
         return t.dot(coordenadas)
     else:
+        # breakpoint()
         return coordenadas.dot(t)
 
 
@@ -80,8 +82,9 @@ class refuerzo:
             As = As + var.area
         return As
 
-    def fy_max(self):
-        self.fy = 420*np.ones(len(self.AreasRef))
+    # def fy_max(self):
+    #     raise NameError("Sin implementar")
+    #     self.fy = 420*np.ones(len(self.AreasRef))
 
     def set_ref_sim(self, NVarX, NVarY, v_esquina, v_alterna, v_fleje, recub,
                     opcion='intercalado'):
@@ -265,7 +268,7 @@ def result_conc(seccion, angulo, ejeN):
     yEje = ymax-ejeN
     if ejeN == 0:
         return [0, 0, 0, yEje]
-    betac = ejeN*max((min((0.85, 0.85-0.05*(seccion.fc-28)/7)), 0.65))
+    betac = ejeN*max(min(0.85, 0.85-0.05*(seccion.fc-28)/7), 0.65)
 
     # htri : altura (height) del triángulo
     # btri : base del triángulo
@@ -280,16 +283,16 @@ def result_conc(seccion, angulo, ejeN):
         # htri, btri, htra, btra = 0, 0, 0, 0, 0
         if (abs(angulo) % 180 < 1) or (abs(angulo) % 180 > 179):
             ta = 0.00001
-            hpar = min((betac, seccion.y))
+            hpar = min(betac, seccion.y)
             bpar = seccion.x
         else:
             ta = 1000000
-            hpar = min((betac, seccion.x))
+            hpar = min(betac, seccion.x)
             bpar = seccion.y
     else:
-        htri = min((ht, betac))
-        hpar = min((cor[2][1]-cor[1][1], betac-htri))
-        htra = min((ht, betac-hpar-htri))
+        htri = min(ht, betac)
+        hpar = min(cor[2][1]-cor[1][1], betac-htri)
+        htra = min(ht, betac-hpar-htri)
         angbase = abs(angulo) % 180.0  # Este angulo se usa para calcular el bloque de Witney
         if angbase > 90:
             angbase = 180-angbase
@@ -398,7 +401,7 @@ def fi_result(seccion, angulo, EjeN, defConc=vcc['defConc'], deftrac=vcc['deftra
     # res[4]    # varilla extrema
     fi = ((fitracc-ficomp)/(deftrac-res[4].fy/res[4].Es)
           * (-res[3]-res[4].fy/res[4].Es)+ficomp)
-    fi = min((fitracc, max((ficomp, fi))))
+    fi = min(fitracc, max(ficomp, fi))
     # print('fi resultante: angulo=%.4f c=%.4f, fi=%.2f' % (angulo, EjeN, fi))
     return res[0]*fi, res[1]*fi, res[2]*fi, fi, res[4]
 
@@ -566,10 +569,10 @@ def buscar_c(sec, P, angulo, c=None):
 
     c1 = None
     if c is None:
-        c1 = 0.4*min((sec.x, sec.y))
-        c2 = c1+0.1*min((sec.x, sec.y))
+        c1 = 0.4*min(sec.x, sec.y)
+        c2 = c1+0.1*min(sec.x, sec.y)
     else:
-        c1 = max(0, c-0.05*min((sec.x, sec.y)))
+        c1 = max(0, c-0.05*min(sec.x, sec.y))
         c2 = c
     p1 = fi_result(sec, angulo, c1)[0]
     p2 = fi_result(sec, angulo, c2)[0]

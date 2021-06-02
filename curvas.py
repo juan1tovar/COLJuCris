@@ -5,6 +5,7 @@ import public_data as pd
 
 
 vcc = pd.column_design_factors
+il = pd.iteration_limit
 
 
 # calcula la deformación unitara en la varilla a tracción
@@ -30,11 +31,11 @@ def buscar_punto_with_fi(seccion, fi, asol, angulo=None, c=None):
 
     if (angulo is None) and (c is None):
         asol = s.calc_ang(x, y, pos)
-        c = calc_d(seccion, angulo)/(1+es/vcc['defConc'])  # d*defConc/(defConc+defsteel)
+        c = calc_d(seccion, asol)/(1+es/vcc['defConc'])  # d*defConc/(defConc+defsteel)
         res = s.resultante(seccion, asol, c)
         es = calc_es_with_fi(fi, res[4].fy, res[4].Es)
         angulo = s.calc_ang(res[1], res[2], pos)  # Primera aproximación del ángulo
-        c = calc_d(s, angulo)/(1+es/vcc['defConc'])  # d*defConc/(defConc+defsteel)
+        c = calc_d(seccion, angulo)/(1+es/vcc['defConc'])  # d*defConc/(defConc+defsteel)
     elif angulo is None:
         asol = s.calc_ang(x, y, pos)
         res = s.resultante(seccion, asol, c)
@@ -45,14 +46,14 @@ def buscar_punto_with_fi(seccion, fi, asol, angulo=None, c=None):
 
     res = s.fi_result(seccion, angulo, c)
     errA = abs(asol-s.calc_ang(res[1], res[2], positive=pos))
-    if errA < 0.001:
+    if errA < il['errA']:
         return [angulo, c]
 
     es = calc_es_with_fi(fi, res[4].fy, res[4].Es)
     deltaC = 1
     deltaA = 1
     ies = 0
-    while (deltaC > 0.0001) or (deltaA > 0.001):
+    while (deltaC > il['errC']) or (deltaA > il['errA']):
         a1 = angulo
         c1 = c
         a2 = s.buscar_ang(seccion, x, y, c1, a1)
@@ -64,7 +65,7 @@ def buscar_punto_with_fi(seccion, fi, asol, angulo=None, c=None):
         # print('a1=%.4f a2=%.4f a3=%.4f' % (a1, a2, a3))
         # print('c1=%.4f c2=%.4f c3=%.4f' % (c1, c2, c3))
         # print('deltaA=%.4f deltaC=%.4f' % (deltaA, deltaC))
-        if (abs(a3-a1) < 0.01) and (abs(c3-c1) < 0.0001):
+        if (abs(a3-a1) < il['errA']) and (abs(c3-c1) < il['errC']):
             angulo = (a3+a2)/2
             c = (c3+c2)/2
         else:
