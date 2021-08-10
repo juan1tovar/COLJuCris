@@ -610,10 +610,10 @@ def buscar_ang(sec, PxX, PxY, c, a=None):
     if a is None:
         res = resultante(sec, asol, c)
         a = calc_ang(res[1], res[2], False)  # primera aproximación
-    else:
-        a = 45
     fasol = 90-asol
     acs = fasol-fasol % 90  # la pendiente es negativa entonces acs es menor aci
+    if fasol % 90 == 0:
+        acs = acs - 45
     aci = acs+90
     if a < acs or aci < a:
         a = acs+a % 90
@@ -621,20 +621,27 @@ def buscar_ang(sec, PxX, PxY, c, a=None):
     ar = calc_ang(res[1], res[2], pos)
     if abs(asol-ar) < il['errA']/10:
         return a
-    if abs(asol-ar) > 90:
-        raise NameError("caudránte equivocado")
-    ari = ar-ar % 90
-    ars = ari+90
-    if asol < ari or ars < asol:
-        raise NameError("caudránte equivocado")
+    res = resultante(sec, aci, c)
+    ari = calc_ang(res[1], res[2], pos)
+    res = resultante(sec, acs, c)
+    ars = calc_ang(res[1], res[2], pos)
+    if abs(asol-ar) > 90 or asol < ari or ars < asol:
+        print("caudránte equivocado")
+        a = fasol
+        res = resultante(sec, a, c)
+        ar = calc_ang(res[1], res[2], pos)
+        if abs(asol - ar) < il("errA") / 10:
+            return a
+        if abs(asol - ar) > 90:
+            raise NameError("No converge, cuadránte equivocado")
     if asol > ar:
         aci = a
         ari = ar
-        ars = ar-ar % 90+90
+        # ars = ars
     else:
         acs = a
         ars = ar
-        ari = ar-ar % 90
+        # ari = ari
     a = a-copysign(0.1, asol-ar)
     res = resultante(sec, a, c)
     ar = calc_ang(res[1], res[2], pos)
