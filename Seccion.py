@@ -56,7 +56,10 @@ class seccion_varilla:
         self.area = pd.steel_bars[etiqueta][1]/1000/1000
         self.fy = fy  # MPa
         self.Es = Es  # MPa
-
+        
+    def __str__(self):
+        print('imprimiendo varilla1')
+        return np.array_str(np.array([self.etiq, self.diam, self.area, self.fy, self.Es]))
 
 class refuerzo:
 
