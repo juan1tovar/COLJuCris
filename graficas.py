@@ -75,3 +75,10 @@ class grafica ():
         nparray[:, 0] = (pmm[:, 1]**2+pmm[:, 2]**2)**0.5
         nparray[:, 1] = pmm[:, 0]
         self.add2D(nparray[:, 0:2], label)
+
+    def addSecc(self, sec, label):
+        nparray = sec.cord_conc(0)
+        self.axelines = self.axe.plot(nparray[:, 0], nparray[:, 1], label=label)        
+        nparray = sec.refXY
+        self.axelines = self.axe.plot(nparray[:, 0], nparray[:, 1], 'o', label=label)
+        print('Sección 2D añadida')
