@@ -21,7 +21,7 @@ class grafica ():
     def __init__(self, is_3D):
         self.is_3D = is_3D
         self.fig = plt.figure()
-        if is_3D:
+        if self.is_3D:
             self.axe = self.fig.add_subplot(projection='3d')
         else:
             self.axe = self.fig.add_subplot()
@@ -76,9 +76,28 @@ class grafica ():
         nparray[:, 1] = pmm[:, 0]
         self.add2D(nparray[:, 0:2], label)
 
+    def addVer(self, pmm, label, bycolumns=True):
+        if self.is_3D:
+            self.addPMM(pmm, label, bycolumns)
+        else:
+            self.addPM(pmm, label, bycolumns)
+
     def addSecc(self, sec, label):
         nparray = sec.cord_conc(0)
         self.axelines = self.axe.plot(nparray[:, 0], nparray[:, 1], label=label)        
         nparray = sec.refXY
         self.axelines = self.axe.plot(nparray[:, 0], nparray[:, 1], 'o', label=label)
         print('Sección 2D añadida')
+
+    def addSolicitaciones(self, solicitaciones, label, bycolumns=True):      
+        if not (bycolumns):
+            solicitaciones = np.transpose(solicitaciones)
+        if self.is_3D:
+            self.axelines = self.axe.plot(solicitaciones[:, 0], solicitaciones[:, 1], solicitaciones[:, 2], 'o', label=label)
+            print('solicitaciones 3D añadidas')
+        else:
+            nparray = copy(solicitaciones)
+            nparray[:, 0] = (solicitaciones[:, 1]**2+solicitaciones[:, 2]**2)**0.5
+            nparray[:, 1] = solicitaciones[:, 0]
+            self.axelines = self.axe.plot(nparray[:, 0], nparray[:, 1], 'o', label=label)
+            print('solicitaciones 2D añadidas')
